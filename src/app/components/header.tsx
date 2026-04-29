@@ -33,8 +33,8 @@ export default async function Header() {
                 <Image
                     src="/LogoZebraMinimalista.png"
                     alt="Zebra Bolão"
-                    width={70}
-                    height={70}
+                    width={60}
+                    height={60}
                     style={{ objectFit: 'contain', cursor: 'pointer' }}
                 />
             </Link>
