@@ -24,6 +24,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import Link from 'next/link'
 import { createPool } from './actions'
 import { useRouter } from 'next/navigation'
+import TeamFlag from '@/app/components/TeamFlag'
 
 interface Match {
   id: string
@@ -217,9 +218,15 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
                   {match.round !== 'group' ? match.round : `Grupo ${match.group_name}`} • {new Date(match.match_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}h
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography sx={{ color: '#fff', fontSize: { xs: 14, sm: 16 }, fontWeight: 500, flex: 1 }}>{match.home_team}</Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.2)', fontWeight: 700 }}>X</Typography>
-                  <Typography sx={{ color: '#fff', fontSize: { xs: 14, sm: 16 }, fontWeight: 500, flex: 1, textAlign: 'right' }}>{match.away_team}</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                    <TeamFlag teamName={match.home_team} size={20} />
+                    <Typography sx={{ color: '#fff', fontSize: { xs: 14, sm: 16 }, fontWeight: 500 }}>{match.home_team}</Typography>
+                  </Box>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.2)', fontWeight: 700, flexShrink: 0 }}>X</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, justifyContent: 'flex-end' }}>
+                    <Typography sx={{ color: '#fff', fontSize: { xs: 14, sm: 16 }, fontWeight: 500, textAlign: 'right' }}>{match.away_team}</Typography>
+                    <TeamFlag teamName={match.away_team} size={20} />
+                  </Box>
                 </Box>
               </Box>
 

@@ -11,6 +11,7 @@ import LinkIcon from '@mui/icons-material/Link'
 import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import TeamFlag from '../components/TeamFlag'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
@@ -238,36 +239,58 @@ function MatchCard({ match }: { match: any }) {
   return (
     <Box sx={{
       display: 'flex',
-      alignItems: 'center',
+      flexDirection: { xs: 'column', md: 'row' },
+      alignItems: { xs: 'center', md: 'center' },
       justifyContent: 'space-between',
+      gap: { xs: 2, md: 0 },
       bgcolor: 'rgba(0,0,0,0.5)',
       border: '0.5px solid rgba(255,255,255,0.08)',
       borderRadius: '12px',
       px: 3,
       py: 2.5,
     }}>
-      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <Typography sx={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', mb: 1, letterSpacing: '0.05em' }}>
-          {match.round != "group" ? match.round : "Grupo " + match.group_name} • {matchTimeBRT}h
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        alignItems: { xs: 'center', md: 'flex-start' }
+      }}>
+        <Typography sx={{ 
+          fontSize: 12, 
+          color: 'rgba(255,255,255,0.4)', 
+          mb: 1, 
+          letterSpacing: '0.05em',
+          textAlign: { xs: 'center', md: 'left' }
+        }}>
+          {match.round !== 'group' ? match.round : 'Grupo ' + match.group_name} • {matchTimeBRT}h
         </Typography>
+
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 500, color: '#fff' }}>
-            {match.home_team}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <TeamFlag teamName={match.home_team} size={20} />
+            <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 500, color: '#fff' }}>
+              {match.home_team}
+            </Typography>
+          </Box>
+
           <Typography sx={{ fontSize: { xs: 10, md: 14 }, color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>
             vs
           </Typography>
-          <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 500, color: '#fff' }}>
-            {match.away_team}
-          </Typography>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <TeamFlag teamName={match.away_team} size={20} />
+            <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 500, color: '#fff' }}>
+              {match.away_team}
+            </Typography>
+          </Box>
         </Box>
       </Box>
+
       <Box sx={{
         bgcolor: 'rgba(201,148,10,0.1)',
         color: match.status === 'live' ? '#fd4040ff' : '#C9940A',
         px: 2,
         py: 1,
-        mt: { xs: 2, md: 0 },
+        alignSelf: { xs: 'center', md: 'auto' },
         borderRadius: '8px',
         border: match.status === 'live' ? '0.5px solid rgba(201, 10, 10, 0.2)' : '0.5px solid rgba(201,148,10,0.2)',
         transition: 'background-color 0.2s',

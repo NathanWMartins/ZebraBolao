@@ -17,6 +17,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close'
 import { getPoolPredictions } from '../../actions'
 import { Check } from '@mui/icons-material'
+import TeamFlag from '@/app/components/TeamFlag'
 
 interface Match {
   id: string
@@ -200,7 +201,10 @@ export default function PredictionsModal({ open, onClose, poolId, matches }: Pre
                               </Typography>
 
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Typography sx={{
+                                <Box sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 1,
                                   color: isCorrect ? '#4caf50' : getPredictionColor(pred.prediction),
                                   fontWeight: 800,
                                   fontSize: 12,
@@ -209,8 +213,16 @@ export default function PredictionsModal({ open, onClose, poolId, matches }: Pre
                                   borderRadius: '4px',
                                   bgcolor: isCorrect ? 'rgba(76, 175, 80, 0.1)' : (pred.prediction !== 'Empate' ? 'rgba(201,148,10,0.1)' : 'rgba(255,255,255,0.05)')
                                 }}>
-                                  {pred.prediction === 'Time A' ? match.home_team : pred.prediction === 'Time B' ? match.away_team : 'Empate'}
-                                </Typography>
+                                  {pred.prediction === 'Time A' && (
+                                    <TeamFlag teamName={match.home_team} size={20} />
+                                  )}
+                                  {pred.prediction === 'Time B' && (
+                                    <TeamFlag teamName={match.away_team} size={20} />
+                                  )}
+                                  <span>
+                                    {pred.prediction === 'Time A' ? match.home_team : pred.prediction === 'Time B' ? match.away_team : 'Empate'}
+                                  </span>
+                                </Box>
 
                                 {isCorrect && (
                                   <Box sx={{

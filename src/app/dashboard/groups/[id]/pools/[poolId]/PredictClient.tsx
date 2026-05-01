@@ -21,6 +21,7 @@ import { savePredictions } from '../../actions'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import PredictionsModal from './PredictionsModal'
+import { getFlagUrl } from '@/lib/teamFlags'
 
 interface Match {
   id: string
@@ -283,7 +284,7 @@ export default function PredictClient({ groupId, poolId, poolName, matches, init
                     <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: selectedGold }} />
                   )}
                   <Avatar
-                    src={match.home_team_flag || ''}
+                    src={getFlagUrl(match.home_team, 80)}
                     sx={{ width: 40, height: 40, mx: 'auto', mb: 1.5, border: currentChoice === 'Time A' ? `2px solid ${selectedGold}` : '1px solid rgba(255,255,255,0.1)' }}
                   >
                     {match.home_team.charAt(0)}
@@ -354,7 +355,7 @@ export default function PredictClient({ groupId, poolId, poolName, matches, init
                     <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: selectedGold }} />
                   )}
                   <Avatar
-                    src={match.away_team_flag || ''}
+                    src={getFlagUrl(match.away_team, 80)}
                     sx={{ width: 40, height: 40, mx: 'auto', mb: 1.5, border: currentChoice === 'Time B' ? `2px solid ${selectedGold}` : '1px solid rgba(255,255,255,0.1)' }}
                   >
                     {match.away_team.charAt(0)}
