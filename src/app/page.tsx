@@ -7,6 +7,8 @@ import Image from 'next/image'
 import GridViewIcon from '@mui/icons-material/GridView'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import Link from 'next/link'
+import Footer from './components/Footer'
 
 export default function LandingPage() {
   const [modalOpen, setModalOpen] = useState(false)
@@ -266,6 +268,8 @@ export default function LandingPage() {
           </Paper>
         </Box>
       </Modal>
+
+      <Footer />
     </Box>
   )
 }

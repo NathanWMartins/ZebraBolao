@@ -25,6 +25,11 @@ export async function middleware(request: NextRequest) {
     if (!user && !request.nextUrl.pathname.startsWith('/login') && request.nextUrl.pathname !== '/') {
         return NextResponse.redirect(new URL('/', request.url))
     }
+
+    const publicRoutes = ['/', '/privacidade', '/termos']
+    if (!user && !publicRoutes.includes(request.nextUrl.pathname)) {
+        return NextResponse.redirect(new URL('/', request.url))
+    }
     return supabaseResponse
 }
 
