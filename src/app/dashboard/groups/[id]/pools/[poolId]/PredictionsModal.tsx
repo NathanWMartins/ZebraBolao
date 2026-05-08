@@ -45,10 +45,11 @@ interface PredictionsModalProps {
   open: boolean
   onClose: () => void
   poolId: string
+  poolType?: string
   matches: Match[]
 }
 
-export default function PredictionsModal({ open, onClose, poolId, matches }: PredictionsModalProps) {
+export default function PredictionsModal({ open, onClose, poolId, poolType = 'winner', matches }: PredictionsModalProps) {
   const [loading, setLoading] = useState(true)
   const [predictions, setPredictions] = useState<Prediction[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -179,7 +180,18 @@ export default function PredictionsModal({ open, onClose, poolId, matches }: Pre
                   ) : (
                     <Grid container spacing={2}>
                       {matchPredictions.map((pred, idx) => {
-                        const isCorrect = hasResult && pred.prediction === actualResult
+                        let isCorrect = false
+                        let predDisplay = pred.prediction
+                        let predColor = getPredictionColor(pred.prediction)
+
+                        if (poolType === 'score') {
+                          const actualScore = hasResult ? `${match.home_score}-${match.away_score}` : null
+                          isCorrect = hasResult && pred.prediction === actualScore
+                          predDisplay = pred.prediction ? pred.prediction.replace('-', ' x ') : '-'
+                          predColor = '#fff'
+                        } else {
+                          isCorrect = hasResult && pred.prediction === actualResult
+                        }
 
                         return (
                           <Grid size={{ xs: 12, sm: 6 }} key={idx}>
@@ -201,28 +213,28 @@ export default function PredictionsModal({ open, onClose, poolId, matches }: Pre
                               </Typography>
 
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Box sx={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 1,
-                                  color: isCorrect ? '#4caf50' : getPredictionColor(pred.prediction),
-                                  fontWeight: 800,
-                                  fontSize: 12,
-                                  px: 1,
-                                  py: 0.5,
-                                  borderRadius: '4px',
-                                  bgcolor: isCorrect ? 'rgba(76, 175, 80, 0.1)' : (pred.prediction !== 'Empate' ? 'rgba(201,148,10,0.1)' : 'rgba(255,255,255,0.05)')
-                                }}>
-                                  {pred.prediction === 'Time A' && (
-                                    <TeamFlag teamName={match.home_team} size={20} />
-                                  )}
-                                  {pred.prediction === 'Time B' && (
-                                    <TeamFlag teamName={match.away_team} size={20} />
-                                  )}
-                                  <span>
-                                    {pred.prediction === 'Time A' ? match.home_team : pred.prediction === 'Time B' ? match.away_team : 'Empate'}
-                                  </span>
-                                </Box>
+                                  <Box sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                    color: isCorrect ? '#4caf50' : predColor,
+                                    fontWeight: 800,
+                                    fontSize: 12,
+                                    px: 1,
+                                    py: 0.5,
+                                    borderRadius: '4px',
+                                    bgcolor: isCorrect ? 'rgba(76, 175, 80, 0.1)' : (poolType === 'score' || pred.prediction !== 'Empate' ? 'rgba(201,148,10,0.1)' : 'rgba(255,255,255,0.05)')
+                                  }}>
+                                    {poolType === 'winner' && pred.prediction === 'Time A' && (
+                                      <TeamFlag teamName={match.home_team} size={20} />
+                                    )}
+                                    {poolType === 'winner' && pred.prediction === 'Time B' && (
+                                      <TeamFlag teamName={match.away_team} size={20} />
+                                    )}
+                                    <span>
+                                      {poolType === 'score' ? predDisplay : (pred.prediction === 'Time A' ? match.home_team : pred.prediction === 'Time B' ? match.away_team : 'Empate')}
+                                    </span>
+                                  </Box>
 
                                 {isCorrect && (
                                   <Box sx={{

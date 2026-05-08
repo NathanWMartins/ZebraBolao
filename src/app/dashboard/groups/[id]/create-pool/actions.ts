@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-export async function createPool(groupId: string, name: string, matchIds: string[]) {
+export async function createPool(groupId: string, name: string, matchIds: string[], type: 'winner' | 'score' = 'winner') {
   if (!name || name.trim() === '') {
     return { error: 'O nome do bolão é obrigatório.' }
   }
@@ -41,7 +41,8 @@ export async function createPool(groupId: string, name: string, matchIds: string
     .insert([{
       group_id: groupId,
       name: name.trim(),
-      match_ids: matchIds // A coluna que o usuário acabou de criar
+      match_ids: matchIds,
+      type: type
     }])
     .select()
     .single()

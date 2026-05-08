@@ -46,11 +46,12 @@ interface PredictClientProps {
   groupId: string
   poolId: string
   poolName: string
+  poolType: string
   matches: Match[]
   initialPredictions: any[]
 }
 
-export default function PredictClient({ groupId, poolId, poolName, matches, initialPredictions }: PredictClientProps) {
+export default function PredictClient({ groupId, poolId, poolName, poolType, matches, initialPredictions }: PredictClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -109,11 +110,47 @@ export default function PredictClient({ groupId, poolId, poolName, matches, init
     setSuccess(false)
   }
 
+  const handleScoreChange = (matchId: string, team: 'home' | 'away', scoreStr: string) => {
+    if (alreadyPredicted) return
+    
+    // Only allow numbers
+    if (scoreStr !== '' && !/^\d+$/.test(scoreStr)) return
+
+    setPredictions(prev => prev.map(p => {
+      if (p.matchId !== matchId) return p
+      
+      let currentPrediction = p.prediction || '-'
+      let [home, away] = currentPrediction.split('-')
+      
+      if (team === 'home') {
+        home = scoreStr
+      } else {
+        away = scoreStr
+      }
+      
+      // Se ambos estiverem vazios, volta pra null
+      if (home === '' && away === '') {
+        return { ...p, prediction: null }
+      }
+      
+      return { ...p, prediction: `${home}-${away}` }
+    }))
+    setSuccess(false)
+  }
+
   const handleSave = async () => {
     if (alreadyPredicted) return
 
     // Validar se todos os campos estão preenchidos
-    const isComplete = predictions.every(p => p.prediction !== null)
+    const isComplete = predictions.every(p => {
+      if (poolType === 'score') {
+        if (!p.prediction) return false
+        const [home, away] = p.prediction.split('-')
+        return home !== undefined && away !== undefined && home !== '' && away !== ''
+      }
+      return p.prediction !== null
+    })
+    
     if (!isComplete) {
       setError('Por favor, faça suas escolhas para todos os jogos.')
       return
@@ -151,7 +188,7 @@ export default function PredictClient({ groupId, poolId, poolName, matches, init
           <Box>
             <Typography variant="h5" sx={{ color: '#fff', fontWeight: 'bold' }}>{poolName}</Typography>
             <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
-              {alreadyPredicted ? 'Visualizando seus palpites' : 'Quem vence?'}
+              {alreadyPredicted ? 'Visualizando seus palpites' : (poolType === 'score' ? 'Qual o placar?' : 'Quem vence?')}
             </Typography>
           </Box>
         </Box>
@@ -263,9 +300,78 @@ export default function PredictClient({ groupId, poolId, poolName, matches, init
                 </Box>
               </Box>
 
-              {/* Main Selection Area using Box Flexbox */}
-              <Box sx={{ display: 'flex', alignItems: 'stretch' }}>
-                {/* Team A Selection */}
+              {/* Main Selection Area */}
+              {poolType === 'score' ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 3 }}>
+                  {/* Home Team */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                    <Avatar
+                      src={getFlagUrl(match.home_team, 80)}
+                      sx={{ width: 48, height: 48, mb: 1, border: '1px solid rgba(255,255,255,0.1)' }}
+                    >
+                      {match.home_team.charAt(0)}
+                    </Avatar>
+                    <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14, mb: 2, textAlign: 'center' }}>
+                      {match.home_team}
+                    </Typography>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      disabled={isDisabled}
+                      value={currentChoice ? currentChoice.split('-')[0] : ''}
+                      onChange={(e) => handleScoreChange(match.id, 'home', e.target.value)}
+                      style={{
+                        width: '60px',
+                        height: '60px',
+                        fontSize: '24px',
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        backgroundColor: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        color: '#fff',
+                        outline: 'none'
+                      }}
+                    />
+                  </Box>
+
+                  <Typography sx={{ color: 'rgba(255,255,255,0.2)', fontWeight: 900, fontSize: 20, mx: 2 }}>X</Typography>
+
+                  {/* Away Team */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                    <Avatar
+                      src={getFlagUrl(match.away_team, 80)}
+                      sx={{ width: 48, height: 48, mb: 1, border: '1px solid rgba(255,255,255,0.1)' }}
+                    >
+                      {match.away_team.charAt(0)}
+                    </Avatar>
+                    <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14, mb: 2, textAlign: 'center' }}>
+                      {match.away_team}
+                    </Typography>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      disabled={isDisabled}
+                      value={currentChoice ? currentChoice.split('-')[1] : ''}
+                      onChange={(e) => handleScoreChange(match.id, 'away', e.target.value)}
+                      style={{
+                        width: '60px',
+                        height: '60px',
+                        fontSize: '24px',
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        backgroundColor: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        color: '#fff',
+                        outline: 'none'
+                      }}
+                    />
+                  </Box>
+                </Box>
+              ) : (
+                <Box sx={{ display: 'flex', alignItems: 'stretch' }}>
+                  {/* Team A Selection */}
                 <Box
                   onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Time A')}
                   sx={{
@@ -368,6 +474,7 @@ export default function PredictClient({ groupId, poolId, poolName, matches, init
                   </Typography>
                 </Box>
               </Box>
+              )}
 
               {isStarted && !alreadyPredicted && (
                 <Box sx={{ p: 1, bgcolor: 'rgba(255, 68, 68, 0.05)', textAlign: 'center' }}>
@@ -450,6 +557,7 @@ export default function PredictClient({ groupId, poolId, poolName, matches, init
         open={showGroupPredictions}
         onClose={() => setShowGroupPredictions(false)}
         poolId={poolId}
+        poolType={poolType}
         matches={localMatches}
       />
     </Box>

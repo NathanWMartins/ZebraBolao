@@ -68,6 +68,7 @@ export default async function PoolPredictPage(props: { params: Promise<{ id: str
       groupId={id}
       poolId={poolId}
       poolName={pool.name}
+      poolType={pool.type || 'winner'}
       matches={matches || []}
       initialPredictions={predictions || []}
     />

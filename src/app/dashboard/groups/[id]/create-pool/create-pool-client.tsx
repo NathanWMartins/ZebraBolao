@@ -14,7 +14,9 @@ import {
   Stack,
   Divider,
   CircularProgress,
-  Chip
+  Chip,
+  ToggleButton,
+  ToggleButtonGroup
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
@@ -46,6 +48,7 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [currentDate, setCurrentDate] = useState<string>('2026-06-11')
   const [poolName, setPoolName] = useState('')
+  const [poolType, setPoolType] = useState<'winner' | 'score'>('winner')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -90,7 +93,7 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
     setLoading(true)
     setError(null)
     try {
-      const result = await createPool(groupId, poolName, selectedIds)
+      const result = await createPool(groupId, poolName, selectedIds, poolType)
       if (result.error) {
         setError(result.error)
       } else {
@@ -330,6 +333,37 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
                     }}
                   />
                   {error && <Typography sx={{ color: '#ff4444', fontSize: 12, mt: 1 }}>{error}</Typography>}
+                </Box>
+
+                <Box sx={{ mb: 4 }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, mb: 1, fontWeight: 500 }}>TIPO DE BOLÃO</Typography>
+                  <ToggleButtonGroup
+                    value={poolType}
+                    exclusive
+                    onChange={(e, newValue) => {
+                      if (newValue !== null) setPoolType(newValue)
+                    }}
+                    fullWidth
+                    sx={{
+                      '& .MuiToggleButton-root': {
+                        color: 'rgba(255,255,255,0.4)',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        py: 1,
+                        '&.Mui-selected': {
+                          color: '#C9940A',
+                          bgcolor: 'rgba(201,148,10,0.1)',
+                          borderColor: '#C9940A',
+                          '&:hover': { bgcolor: 'rgba(201,148,10,0.2)' }
+                        },
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' }
+                      }
+                    }}
+                  >
+                    <ToggleButton value="winner">Vencedor ou Empate</ToggleButton>
+                    <ToggleButton value="score">Placar Exato</ToggleButton>
+                  </ToggleButtonGroup>
                 </Box>
 
                 {/* Lista de Selecionados */}

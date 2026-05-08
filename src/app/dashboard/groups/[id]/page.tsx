@@ -199,10 +199,7 @@ export default async function GroupPage(props: {
                       bgcolor: 'rgba(0,0,0,0.4)',
                       border: '0.5px solid rgba(255,255,255,0.05)',
                       borderRadius: '12px',
-                      p: 3,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
+                      p: 2,
                       transition: 'all 0.2s',
                       cursor: 'pointer',
                       '&:hover': {
@@ -210,57 +207,75 @@ export default async function GroupPage(props: {
                         borderColor: 'rgba(201,148,10,0.3)',
                       }
                     }}>
-                      <Box>
-                        <Stack direction="row" spacing={1} sx={{ mb: 0.5, alignItems: 'center' }}>
-                          <Typography sx={{ color: '#fff', fontSize: 18, fontWeight: 500 }}>{pool.name}</Typography>
-                          <Chip
-                            label={status.label}
-                            size="small"
-                            sx={{
-                              height: '20px',
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              color: status.color,
-                              bgcolor: status.bgcolor,
-                              border: `1px solid ${status.color}33`,
-                              '& .MuiChip-label': { px: 1 }
-                            }}
-                          />
-                        </Stack>
-                        <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
-                          Criado em {new Date(pool.created_at).toLocaleDateString('pt-BR')}
+                      {/* Linha 1: Nome + Status */}
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1, minWidth: 0 }}>
+                        <Typography sx={{
+                          color: '#fff',
+                          fontSize: 16,
+                          fontWeight: 600,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          flex: 1,
+                          minWidth: 0
+                        }}>
+                          {pool.name}
                         </Typography>
-                      </Box>
-
-                      <Stack direction="row" spacing={1}>
-                        <Button
-                          variant="outlined"
+                        <Chip
+                          label={status.label}
                           size="small"
                           sx={{
-                            color: hasPredicted ? 'rgba(255,255,255,0.7)' : '#C9940A',
-                            borderColor: hasPredicted ? 'rgba(255,255,255,0.2)' : 'rgba(201,148,10,0.5)',
-                            textTransform: 'none',
-                            fontWeight: 600,
-                            fontSize: '12px',
-                            px: 2,
-                            borderRadius: '8px',
-                            '&:hover': {
-                              borderColor: hasPredicted ? '#fff' : '#C9940A',
-                              bgcolor: 'rgba(255,255,255,0.05)'
-                            }
+                            flexShrink: 0,
+                            height: '20px',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            color: status.color,
+                            bgcolor: status.bgcolor,
+                            border: `1px solid ${status.color}33`,
+                            '& .MuiChip-label': { px: 1 }
                           }}
-                        >
-                          {hasPredicted ? 'Visualizar Palpite' : 'Palpitar'}
-                        </Button>
-
-                        {isOwner && (
-                          <DeletePoolButton
-                            poolId={pool.id}
-                            groupId={id}
-                            poolName={pool.name}
-                          />
-                        )}
+                        />
                       </Stack>
+
+                      {/* Linha 2: Data + Botões */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
+                          {new Date(pool.created_at).toLocaleDateString('pt-BR')}
+                        </Typography>
+
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            sx={{
+                              color: hasPredicted ? 'rgba(255,255,255,0.7)' : '#C9940A',
+                              borderColor: hasPredicted ? 'rgba(255,255,255,0.2)' : 'rgba(201,148,10,0.5)',
+                              textTransform: 'none',
+                              fontWeight: 600,
+                              fontSize: '12px',
+                              px: 1.5,
+                              py: 0.5,
+                              borderRadius: '8px',
+                              whiteSpace: 'nowrap',
+                              minWidth: 'auto',
+                              '&:hover': {
+                                borderColor: hasPredicted ? '#fff' : '#C9940A',
+                                bgcolor: 'rgba(255,255,255,0.05)'
+                              }
+                            }}
+                          >
+                            {hasPredicted ? 'Ver Palpite' : 'Palpitar'}
+                          </Button>
+
+                          {isOwner && (
+                            <DeletePoolButton
+                              poolId={pool.id}
+                              groupId={id}
+                              poolName={pool.name}
+                            />
+                          )}
+                        </Stack>
+                      </Box>
                     </Box>
                   </Link>
                 )
