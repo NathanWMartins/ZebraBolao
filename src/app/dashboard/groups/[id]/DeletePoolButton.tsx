@@ -1,5 +1,6 @@
 'use client'
 import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button, CircularProgress } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { deletePool } from './actions'
@@ -13,9 +14,11 @@ interface DeletePoolButtonProps {
 export default function DeletePoolButton({ poolId, groupId, poolName }: DeletePoolButtonProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   const handleClickOpen = (e: React.MouseEvent) => {
     e.stopPropagation()
+    e.preventDefault()
     setOpen(true)
   }
 
@@ -30,6 +33,7 @@ export default function DeletePoolButton({ poolId, groupId, poolName }: DeletePo
     try {
       await deletePool(poolId, groupId)
       setOpen(false)
+      router.refresh()
     } catch (error) {
       console.error(error)
       alert('Erro ao excluir o bolão. Tente novamente.')

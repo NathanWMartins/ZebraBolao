@@ -59,12 +59,14 @@ export async function updateGroupSettings(groupId: string, name?: string, passwo
 
 export async function deletePool(poolId: string, groupId: string) {
   const supabase = await createServerSupabaseClient()
-  
+  const supabaseAdmin = createAdminClient()
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     throw new Error('Usuário não autenticado.')
   }
 
+  // Verificar ownership com o client autenticado
   const { data: group, error: groupCheckError } = await supabase
     .from('groups')
     .select('owner_id')
@@ -79,7 +81,8 @@ export async function deletePool(poolId: string, groupId: string) {
     throw new Error('Apenas o administrador do grupo pode excluir um bolão.')
   }
 
-  const { error: predictionError } = await supabase
+  // Usar admin client para deletar (bypass RLS)
+  const { error: predictionError } = await supabaseAdmin
     .from('predictions')
     .delete()
     .eq('pool_id', poolId)
@@ -89,7 +92,7 @@ export async function deletePool(poolId: string, groupId: string) {
     throw new Error('Erro ao excluir os palpites do bolão.')
   }
 
-  const { error: poolError } = await supabase
+  const { error: poolError } = await supabaseAdmin
     .from('pools')
     .delete()
     .eq('id', poolId)
