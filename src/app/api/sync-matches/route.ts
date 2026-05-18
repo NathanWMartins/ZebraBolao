@@ -39,7 +39,7 @@ export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
 
   const isVercelCron = authHeader === `Bearer ${process.env.CRON_SECRET}`
-  const isManualSecret = secretParam === SYNC_SECRET
+  const isManualSecret = secretParam === SYNC_SECRET || authHeader === `Bearer ${SYNC_SECRET}`
 
   if (!isVercelCron && !isManualSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

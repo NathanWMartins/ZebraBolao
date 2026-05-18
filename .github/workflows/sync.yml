@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Call Sync API
-        # Passa a URL e o segredo guardados nos Secrets do GitHub
+        # Passa a URL e o segredo guardados nos Secrets do GitHub usando Header de Autenticação
         run: |
-          curl -X GET "${{ secrets.PROD_URL }}/api/sync-matches?secret=${{ secrets.SYNC_SECRET }}"
+          curl -X GET "${{ secrets.PROD_URL }}/api/sync-matches" \
+               -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}"
