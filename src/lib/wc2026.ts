@@ -62,3 +62,13 @@ export function getMatchesAPI(round?: string) {
   const query = round ? `?round=${round}` : ''
   return wc2026Fetch<WC2026MatchAPI[]>(`/matches${query}`)
 }
+
+// Busca todos os jogos do mata-mata de uma vez (em paralelo)
+const KNOCKOUT_ROUNDS = ['R32', 'R16', 'QF', 'SF', '3rd', 'final']
+
+export async function getKnockoutMatchesAPI(): Promise<WC2026MatchAPI[]> {
+  const results = await Promise.all(
+    KNOCKOUT_ROUNDS.map((round) => getMatchesAPI(round))
+  )
+  return results.flat()
+}

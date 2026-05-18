@@ -1,0 +1,17 @@
+name: Sync Matches Cron
+
+on:
+  schedule:
+    # Executa a cada 15 minutos
+    - cron: '*/15 * * * *'
+  # Permite rodar o workflow manualmente pelo painel do GitHub
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Sync API
+        # Passa a URL e o segredo guardados nos Secrets do GitHub
+        run: |
+          curl -X GET "${{ secrets.PROD_URL }}/api/sync-matches?secret=${{ secrets.SYNC_SECRET }}"
