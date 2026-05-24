@@ -7,13 +7,16 @@ import Image from 'next/image'
 import GridViewIcon from '@mui/icons-material/GridView'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import Link from 'next/link'
 import Footer from './components/Footer'
+import AdBanner from './components/AdBanner'
 
 export default function LandingPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
+  const [faqOpen, setFaqOpen] = useState<number | null>(null)
   const supabase = createClient()
 
   // Lê erro de autenticação vindo do callback do Supabase
@@ -202,6 +205,203 @@ export default function LandingPage() {
             </Typography>
           </Box>
         ))}
+      </Box>
+
+      {/* Anúncio 1 — entre features e como funciona */}
+      <Box sx={{ px: 4, maxWidth: 1300, mx: 'auto' }}>
+        <AdBanner slot="6900894387" />
+      </Box>
+
+      {/* Como funciona */}
+      <Box sx={{ px: 4, py: 8, maxWidth: 1300, mx: 'auto' }}>
+        <Typography sx={{
+          color: 'rgba(255,255,255,0.25)',
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: 2,
+          textTransform: 'uppercase',
+          mb: 1.5,
+        }}>
+          Como funciona
+        </Typography>
+        <Typography sx={{ color: '#fff', fontSize: { xs: 24, md: 30 }, fontWeight: 500, mb: 6, letterSpacing: -0.5 }}>
+          Em quatro passos simples
+        </Typography>
+        <Box sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+          gap: 2,
+        }}>
+          {[
+            {
+              step: '01',
+              title: 'Crie um grupo',
+              desc: 'Dê um nome ao seu grupo e defina quem pode participar. Você vira o administrador.',
+            },
+            {
+              step: '02',
+              title: 'Convide seus amigos',
+              desc: 'Compartilhe o link ou QR code gerado automaticamente. Qualquer pessoa com o link entra.',
+            },
+            {
+              step: '03',
+              title: 'Faça seus palpites',
+              desc: 'Escolha o resultado de cada jogo — vitória do time da casa, empate ou vitória do visitante.',
+            },
+            {
+              step: '04',
+              title: 'Acompanhe o ranking',
+              desc: 'A pontuação é calculada automaticamente após cada partida. Quem acertar mais vence.',
+            },
+          ].map((item) => (
+            <Box key={item.step} sx={{
+              bgcolor: 'rgba(0,0,0,0.5)',
+              border: '0.5px solid rgba(255,255,255,0.07)',
+              borderRadius: '10px',
+              p: 3,
+            }}>
+              <Typography sx={{ color: '#C9940A', fontSize: 28, fontWeight: 700, mb: 1.5, opacity: 0.6 }}>
+                {item.step}
+              </Typography>
+              <Typography sx={{ color: '#fff', fontWeight: 500, fontSize: 14, mb: 1 }}>
+                {item.title}
+              </Typography>
+              <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, lineHeight: 1.6 }}>
+                {item.desc}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+
+      {/* FAQ */}
+      <Box sx={{ px: 4, py: 8, maxWidth: 900, mx: 'auto' }}>
+        <Typography sx={{
+          color: 'rgba(255,255,255,0.25)',
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: 2,
+          textTransform: 'uppercase',
+          mb: 1.5,
+        }}>
+          Perguntas frequentes
+        </Typography>
+        <Typography sx={{ color: '#fff', fontSize: { xs: 24, md: 30 }, fontWeight: 500, mb: 6, letterSpacing: -0.5 }}>
+          Ficou alguma dúvida?
+        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {[
+            {
+              q: 'O Zebra Bolão é gratuito?',
+              a: 'Sim, totalmente gratuito. Você pode criar grupos, convidar amigos e fazer palpites sem pagar nada.',
+            },
+            {
+              q: 'O Zebra Bolão envolve dinheiro real?',
+              a: 'Não. O Zebra Bolão é uma plataforma recreativa de palpites. Nenhum valor financeiro é cobrado, armazenado ou distribuído pela plataforma. Se o seu grupo quiser organizar um prêmio entre si, isso é combinado diretamente entre os participantes, sem qualquer intermediação do Zebra.',
+            },
+            {
+              q: 'Preciso criar uma conta?',
+              a: 'Você entra com sua conta Google — sem senha nova para lembrar. É rápido e seguro.',
+            },
+            {
+              q: 'Posso participar de mais de um grupo?',
+              a: 'Sim. Não há limite de grupos. Você pode estar no bolão do trabalho, da família e dos amigos ao mesmo tempo.',
+            },
+            {
+              q: 'Até quando posso fazer meu palpite?',
+              a: 'Os palpites ficam abertos até o apito inicial da partida. Após o início do jogo, não é mais possível alterar ou registrar palpites para aquela rodada.',
+            },
+            {
+              q: 'Como é calculada a pontuação?',
+              a: 'Cada palpite correto vale 1 ponto. O resultado considerado é o placar ao final do tempo regulamentar (90 minutos). Quem acumular mais pontos ao longo do torneio vence o bolão.',
+            },
+            {
+              q: 'Meus dados estão seguros?',
+              a: 'Sim. Utilizamos apenas seu e-mail e nome do Google para criar seu perfil. Não compartilhamos seus dados com terceiros, exceto os necessários para exibição de anúncios (Google AdSense). Leia nossa Política de Privacidade para mais detalhes.',
+            },
+          ].map((item, i) => (
+            <Box
+              key={item.q}
+              onClick={() => setFaqOpen(faqOpen === i ? null : i)}
+              sx={{
+                bgcolor: 'rgba(0,0,0,0.5)',
+                border: '0.5px solid',
+                borderColor: faqOpen === i ? 'rgba(201,148,10,0.3)' : 'rgba(255,255,255,0.07)',
+                borderRadius: '10px',
+                px: 3, py: 2.5,
+                cursor: 'pointer',
+                transition: 'border-color 0.2s',
+                '&:hover': { borderColor: 'rgba(255,255,255,0.15)' },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+                <Typography sx={{ color: '#fff', fontWeight: 500, fontSize: 14 }}>
+                  {item.q}
+                </Typography>
+                <KeyboardArrowDownIcon sx={{
+                  color: 'rgba(255,255,255,0.35)',
+                  fontSize: 20,
+                  flexShrink: 0,
+                  transform: faqOpen === i ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.25s',
+                }} />
+              </Box>
+              <Typography sx={{
+                color: 'rgba(255,255,255,0.45)',
+                fontSize: 13,
+                lineHeight: 1.65,
+                mt: faqOpen === i ? 1.5 : 0,
+                maxHeight: faqOpen === i ? '200px' : '0px',
+                overflow: 'hidden',
+                transition: 'max-height 0.25s ease, margin-top 0.25s ease',
+              }}>
+                {item.a}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+
+      {/* Anúncio 2 — entre FAQ e CTA */}
+      <Box sx={{ px: 4, maxWidth: 1300, mx: 'auto' }}>
+        <AdBanner slot="6900894387" />
+      </Box>
+
+      {/* CTA final */}
+      <Box sx={{
+        px: 4, py: 8,
+        maxWidth: 1300, mx: 'auto',
+        textAlign: 'center',
+      }}>
+        <Box sx={{
+          bgcolor: 'rgba(201,148,10,0.06)',
+          border: '0.5px solid rgba(201,148,10,0.2)',
+          borderRadius: '16px',
+          p: { xs: 4, md: 6 },
+        }}>
+          <Typography sx={{ color: '#fff', fontSize: { xs: 22, md: 28 }, fontWeight: 500, mb: 1.5, letterSpacing: -0.5 }}>
+            Pronto para descobrir a zebra?
+          </Typography>
+          <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, mb: 4 }}>
+            Entre agora e monte seu bolão em menos de 2 minutos.
+          </Typography>
+          <Button
+            variant="contained"
+            onClick={() => setModalOpen(true)}
+            sx={{
+              bgcolor: '#C9940A',
+              color: '#fff',
+              borderRadius: '10px',
+              px: 4, py: 1.6,
+              fontSize: 15,
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': { bgcolor: '#b07d06' },
+            }}
+          >
+            Começar agora — é grátis
+          </Button>
+        </Box>
       </Box>
 
       {/* Modal de login */}

@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /privacidade
+Allow: /termos
+Disallow: /dashboard
+Disallow: /auth
+Disallow: /api
+
+Sitemap: https://zebra-bolao.vercel.app/sitemap.xml

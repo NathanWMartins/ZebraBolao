@@ -12,6 +12,12 @@ export default function Footer() {
             justifyContent: 'center',
             gap: 3,
         }}>
+            <Link href="/sobre" style={{ textDecoration: 'none' }}>
+                <Typography sx={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', '&:hover': { color: '#C9940A' }, transition: 'color 0.2s' }}>
+                    Sobre
+                </Typography>
+            </Link>
+            <Typography sx={{ fontSize: 12, color: 'rgba(255,255,255,0.1)' }}>·</Typography>
             <Link href="/privacidade" style={{ textDecoration: 'none' }}>
                 <Typography sx={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', '&:hover': { color: '#C9940A' }, transition: 'color 0.2s' }}>
                     Política de Privacidade
