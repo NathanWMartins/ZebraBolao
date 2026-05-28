@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import PredictionsModal from './PredictionsModal'
 import { getFlagUrl } from '@/lib/teamFlags'
+import { translateTeam } from '@/lib/teamTranslations'
 
 interface Match {
   id: string
@@ -312,7 +313,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, mat
                       {match.home_team.charAt(0)}
                     </Avatar>
                     <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14, mb: 2, textAlign: 'center' }}>
-                      {match.home_team}
+                      {translateTeam(match.home_team)}
                     </Typography>
                     <input
                       type="text"
@@ -346,7 +347,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, mat
                       {match.away_team.charAt(0)}
                     </Avatar>
                     <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14, mb: 2, textAlign: 'center' }}>
-                      {match.away_team}
+                      {translateTeam(match.away_team)}
                     </Typography>
                     <input
                       type="text"
@@ -396,7 +397,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, mat
                     {match.home_team.charAt(0)}
                   </Avatar>
                   <Typography sx={{ color: currentChoice === 'Time A' ? selectedGold : '#fff', fontWeight: 700, fontSize: 13 }}>
-                    {match.home_team}
+                    {translateTeam(match.home_team)}
                   </Typography>
                   <Typography sx={{ color: isDisabled && currentChoice !== 'Time A' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
                     {currentChoice === 'Time A' ? 'ESCOLHIDO' : 'VENCE'}
@@ -467,7 +468,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, mat
                     {match.away_team.charAt(0)}
                   </Avatar>
                   <Typography sx={{ color: currentChoice === 'Time B' ? selectedGold : '#fff', fontWeight: 700, fontSize: 13 }}>
-                    {match.away_team}
+                    {translateTeam(match.away_team)}
                   </Typography>
                   <Typography sx={{ color: isDisabled && currentChoice !== 'Time B' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
                     {currentChoice === 'Time B' ? 'ESCOLHIDO' : 'VENCE'}

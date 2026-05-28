@@ -12,8 +12,7 @@ async function wc2026Fetch<T>(path: string): Promise<T> {
       Authorization: `Bearer ${API_KEY}`,
       'Content-Type': 'application/json',
     },
-    // Revalida a cada 60 minutos (dados da Copa mudam pouco)
-    next: { revalidate: 3600 },
+    cache: 'no-store',
   })
 
   if (!res.ok) {

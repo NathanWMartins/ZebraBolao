@@ -27,6 +27,7 @@ import Link from 'next/link'
 import { createPool } from './actions'
 import { useRouter } from 'next/navigation'
 import TeamFlag from '@/app/components/TeamFlag'
+import { translateTeam } from '@/lib/teamTranslations'
 
 interface Match {
   id: string
@@ -223,11 +224,11 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
                     <TeamFlag teamName={match.home_team} size={20} />
-                    <Typography sx={{ color: '#fff', fontSize: { xs: 14, sm: 16 }, fontWeight: 500 }}>{match.home_team}</Typography>
+                    <Typography sx={{ color: '#fff', fontSize: { xs: 14, sm: 16 }, fontWeight: 500 }}>{translateTeam(match.home_team)}</Typography>
                   </Box>
                   <Typography sx={{ color: 'rgba(255,255,255,0.2)', fontWeight: 700, flexShrink: 0 }}>X</Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, justifyContent: 'flex-end' }}>
-                    <Typography sx={{ color: '#fff', fontSize: { xs: 14, sm: 16 }, fontWeight: 500, textAlign: 'right' }}>{match.away_team}</Typography>
+                    <Typography sx={{ color: '#fff', fontSize: { xs: 14, sm: 16 }, fontWeight: 500, textAlign: 'right' }}>{translateTeam(match.away_team)}</Typography>
                     <TeamFlag teamName={match.away_team} size={20} />
                   </Box>
                 </Box>
@@ -390,7 +391,7 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
                     }}>
                       <Box>
                         <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 500 }}>
-                          {match.home_team} vs {match.away_team}
+                          {translateTeam(match.home_team)} vs {translateTeam(match.away_team)}
                         </Typography>
                         <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>
                           {new Date(match.match_date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })} • {new Date(match.match_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}h

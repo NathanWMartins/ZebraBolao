@@ -12,6 +12,7 @@ import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import TeamFlag from '../components/TeamFlag'
+import { translateTeam } from '@/lib/teamTranslations'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
@@ -118,9 +119,11 @@ export default async function DashboardPage() {
           }}>
             Próximos jogos
           </Typography>
-          <Typography sx={{ fontSize: 12, color: '#C9940A', cursor: 'pointer' }}>
-            Ver todos →
-          </Typography>
+          <Link href="/dashboard/matches" style={{ textDecoration: 'none' }}>
+            <Typography sx={{ fontSize: 12, color: '#C9940A', cursor: 'pointer', '&:hover': { color: '#E6AC10' } }}>
+              Ver todos →
+            </Typography>
+          </Link>
         </Box>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -268,18 +271,32 @@ function MatchCard({ match }: { match: any }) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <TeamFlag teamName={match.home_team} size={20} />
             <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 500, color: '#fff' }}>
-              {match.home_team}
+              {translateTeam(match.home_team)}
             </Typography>
           </Box>
 
-          <Typography sx={{ fontSize: { xs: 10, md: 14 }, color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>
-            vs
-          </Typography>
+          {match.home_score !== null && match.away_score !== null ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.05)', px: 1.5, py: 0.5, borderRadius: '6px' }}>
+              <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 700, color: '#C9940A' }}>
+                {match.home_score}
+              </Typography>
+              <Typography sx={{ fontSize: { xs: 10, md: 12 }, color: 'rgba(255,255,255,0.3)' }}>
+                x
+              </Typography>
+              <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 700, color: '#C9940A' }}>
+                {match.away_score}
+              </Typography>
+            </Box>
+          ) : (
+            <Typography sx={{ fontSize: { xs: 10, md: 14 }, color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>
+              vs
+            </Typography>
+          )}
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <TeamFlag teamName={match.away_team} size={20} />
             <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 500, color: '#fff' }}>
-              {match.away_team}
+              {translateTeam(match.away_team)}
             </Typography>
           </Box>
         </Box>
@@ -287,15 +304,15 @@ function MatchCard({ match }: { match: any }) {
 
       <Box sx={{
         bgcolor: 'rgba(201,148,10,0.1)',
-        color: match.status === 'live' ? '#fd4040ff' : '#C9940A',
+        color: (match.status === 'live' || match.status === 'in_play' || match.status === 'playing') ? '#fd4040ff' : '#C9940A',
         px: 2,
         py: 1,
         alignSelf: { xs: 'center', md: 'auto' },
         borderRadius: '8px',
-        border: match.status === 'live' ? '0.5px solid rgba(201, 10, 10, 0.2)' : '0.5px solid rgba(201,148,10,0.2)',
+        border: (match.status === 'live' || match.status === 'in_play' || match.status === 'playing') ? '0.5px solid rgba(201, 10, 10, 0.2)' : '0.5px solid rgba(201,148,10,0.2)',
         transition: 'background-color 0.2s',
         '&:hover': {
-          bgcolor: match.status === 'live' ? 'rgba(201, 10, 10, 0.2)' : 'rgba(201,148,10,0.15)',
+          bgcolor: (match.status === 'live' || match.status === 'in_play' || match.status === 'playing') ? 'rgba(201, 10, 10, 0.2)' : 'rgba(201,148,10,0.15)',
         }
       }}>
         <Typography sx={{ fontSize: { xs: 10, md: 13 }, fontWeight: 600 }}>{translate(match)}</Typography>
@@ -309,10 +326,14 @@ function translate(match: any) {
     case 'scheduled':
       return 'Aguardo'
     case 'live':
-      return 'Em andamento'
+    case 'in_play':
+    case 'playing':
+      return 'Ao vivo'
+    case 'finished':
+    case 'completed':
     case 'completes':
-      return match.result
+      return match.result || `${match.home_score}-${match.away_score}`
     default:
-      return ''
+      return match.status || ''
   }
 }

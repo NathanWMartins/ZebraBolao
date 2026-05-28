@@ -18,6 +18,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import { getPoolPredictions } from '../../actions'
 import { Check } from '@mui/icons-material'
 import TeamFlag from '@/app/components/TeamFlag'
+import { translateTeam } from '@/lib/teamTranslations'
 
 interface Match {
   id: string
@@ -131,7 +132,7 @@ export default function PredictionsModal({ open, onClose, poolId, poolType = 'wi
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>
-                        {match.home_team}
+                        {translateTeam(match.home_team)}
                       </Typography>
 
                       {hasResult ? (
@@ -157,7 +158,7 @@ export default function PredictionsModal({ open, onClose, poolId, poolType = 'wi
                       )}
 
                       <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>
-                        {match.away_team}
+                        {translateTeam(match.away_team)}
                       </Typography>
 
                       {match.status === 'live' && (
@@ -232,7 +233,7 @@ export default function PredictionsModal({ open, onClose, poolId, poolType = 'wi
                                       <TeamFlag teamName={match.away_team} size={20} />
                                     )}
                                     <span>
-                                      {poolType === 'score' ? predDisplay : (pred.prediction === 'Time A' ? match.home_team : pred.prediction === 'Time B' ? match.away_team : 'Empate')}
+                                      {poolType === 'score' ? predDisplay : (pred.prediction === 'Time A' ? translateTeam(match.home_team) : pred.prediction === 'Time B' ? translateTeam(match.away_team) : 'Empate')}
                                     </span>
                                   </Box>
 
