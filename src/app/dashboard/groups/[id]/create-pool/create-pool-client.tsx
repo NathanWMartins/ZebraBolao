@@ -81,9 +81,6 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
     setSelectedIds(prev =>
       prev.includes(matchId) ? prev.filter(id => id !== matchId) : [...prev, matchId]
     )
-    if (!isDrawerOpen && selectedIds.length === 0) {
-      setIsDrawerOpen(true)
-    }
   }
 
   const handleSave = async () => {

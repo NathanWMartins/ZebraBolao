@@ -129,8 +129,8 @@ export default function PredictionsModal({ open, onClose, poolId, poolType = 'wi
 
               return (
                 <Box key={match.id} sx={{ bgcolor: 'rgba(255,255,255,0.02)', p: 2, borderRadius: '12px' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
                       <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>
                         {translateTeam(match.home_team)}
                       </Typography>
@@ -167,8 +167,8 @@ export default function PredictionsModal({ open, onClose, poolId, poolType = 'wi
                         </Box>
                       )}
                     </Box>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>
-                      {matchDate.toLocaleDateString('pt-BR')} {matchDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, mt: 0.5 }}>
+                      {matchDate.toLocaleDateString('pt-BR')} • {matchDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
                     </Typography>
                   </Box>
 

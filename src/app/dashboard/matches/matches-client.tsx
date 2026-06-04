@@ -124,7 +124,7 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
   const translateStatus = (match: Match) => {
     switch (match.status) {
       case 'scheduled':
-        return 'Aguardo'
+        return 'Em breve'
       case 'live':
       case 'in_play':
       case 'playing':
@@ -157,11 +157,8 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
           border: isLive ? '1px solid rgba(253, 64, 64, 0.3)' : '0.5px solid rgba(255,255,255,0.08)',
           borderRadius: '16px',
           overflow: 'hidden',
-          transition: 'all 0.2s',
-          '&:hover': {
-            bgcolor: 'rgba(255,255,255,0.02)',
-            borderColor: isLive ? 'rgba(253, 64, 64, 0.5)' : 'rgba(201,148,10,0.3)',
-          }
+          cursor: 'default',
+          userSelect: 'none',
         }}
       >
         <Box sx={{
@@ -261,7 +258,7 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
               textAlign: 'center'
             }}>
               <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.02em' }}>
-                {isFinished && match.result ? match.result : translateStatus(match)}
+                {translateStatus(match)}
               </Typography>
             </Box>
           </Stack>

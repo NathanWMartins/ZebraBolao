@@ -173,36 +173,7 @@ export default function SobrePage() {
                         Para dúvidas, sugestões ou questões relacionadas à privacidade, entre em contato pelo e-mail acima.
                     </Typography>
                 </Box>
-
-                {/* Links úteis */}
-                <Box sx={{
-                    display: 'flex',
-                    gap: 2,
-                    flexWrap: 'wrap',
-                    pt: 4,
-                    borderTop: '0.5px solid rgba(255,255,255,0.07)',
-                }}>
-                    <Link href="/privacidade" style={{ textDecoration: 'none' }}>
-                        <Typography sx={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', '&:hover': { color: '#C9940A' }, transition: 'color 0.2s' }}>
-                            Política de Privacidade
-                        </Typography>
-                    </Link>
-                    <Typography sx={{ fontSize: 13, color: 'rgba(255,255,255,0.15)' }}>·</Typography>
-                    <Link href="/termos" style={{ textDecoration: 'none' }}>
-                        <Typography sx={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', '&:hover': { color: '#C9940A' }, transition: 'color 0.2s' }}>
-                            Termos de Uso
-                        </Typography>
-                    </Link>
-                    <Typography sx={{ fontSize: 13, color: 'rgba(255,255,255,0.15)' }}>·</Typography>
-                    <Link href="/" style={{ textDecoration: 'none' }}>
-                        <Typography sx={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', '&:hover': { color: '#C9940A' }, transition: 'color 0.2s' }}>
-                            Voltar ao início
-                        </Typography>
-                    </Link>
-                </Box>
-
             </Container>
-
             <Footer />
         </Box>
     )

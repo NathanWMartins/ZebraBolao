@@ -2,14 +2,13 @@ import React from 'react'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Box, Typography, Avatar, Button, Stack, Divider, Chip } from '@mui/material'
+import { Box, Typography, Avatar, Divider, Button, Stack } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AddIcon from '@mui/icons-material/Add'
 import ShareModalClient from './ShareModalClient'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import EditGroupModal from './EditGroupModal'
-import DeletePoolButton from './DeletePoolButton'
-import GroupTabs from './GroupTabs'
+import GroupPoolsList from './GroupPoolsList'
 
 export default async function GroupPage(props: {
   params: Promise<{ id: string }>,
@@ -163,125 +162,13 @@ export default async function GroupPage(props: {
             )}
           </Box>
 
-          <GroupTabs />
-
-          {(filteredPools.length === 0) ? (
-            <Box sx={{
-              bgcolor: 'rgba(12, 12, 12)',
-              border: '1px dashed rgba(255,255,255,0.1)',
-              borderRadius: '12px',
-              p: 5,
-              textAlign: 'center'
-            }}>
-              <Typography sx={{ color: 'rgba(255,255,255,0.6)', mb: 2 }}>
-                {activeTab === 'history'
-                  ? "Nenhum bolão finalizado ainda."
-                  : "Nenhum bolão aberto no momento."
-                }
-              </Typography>
-              {isOwner && activeTab === 'active' && (
-                <Link href={`/dashboard/groups/${id}/create-pool`} passHref>
-                  <Button variant="outlined" sx={{ color: '#C9940A', borderColor: 'rgba(201,148,10,0.5)' }}>
-                    Criar Bolão
-                  </Button>
-                </Link>
-              )}
-            </Box>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {filteredPools.map(pool => {
-                const hasPredicted = predictedPoolIds.has(pool.id)
-                const status = getStatusLabel(pool.status)
-
-                return (
-                  <Link key={pool.id} href={`/dashboard/groups/${id}/pools/${pool.id}`} style={{ textDecoration: 'none' }}>
-                    <Box sx={{
-                      bgcolor: 'rgba(0,0,0,0.4)',
-                      border: '0.5px solid rgba(255,255,255,0.05)',
-                      borderRadius: '12px',
-                      p: 2,
-                      transition: 'all 0.2s',
-                      cursor: 'pointer',
-                      '&:hover': {
-                        bgcolor: 'rgba(255,255,255,0.03)',
-                        borderColor: 'rgba(201,148,10,0.3)',
-                      }
-                    }}>
-                      {/* Linha 1: Nome + Status */}
-                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1, minWidth: 0 }}>
-                        <Typography sx={{
-                          color: '#fff',
-                          fontSize: 16,
-                          fontWeight: 600,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          flex: 1,
-                          minWidth: 0
-                        }}>
-                          {pool.name}
-                        </Typography>
-                        <Chip
-                          label={status.label}
-                          size="small"
-                          sx={{
-                            flexShrink: 0,
-                            height: '20px',
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            color: status.color,
-                            bgcolor: status.bgcolor,
-                            border: `1px solid ${status.color}33`,
-                            '& .MuiChip-label': { px: 1 }
-                          }}
-                        />
-                      </Stack>
-
-                      {/* Linha 2: Data + Botões */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
-                          {new Date(pool.created_at).toLocaleDateString('pt-BR')}
-                        </Typography>
-
-                        <Stack direction="row" spacing={1}>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            sx={{
-                              color: hasPredicted ? 'rgba(255,255,255,0.7)' : '#C9940A',
-                              borderColor: hasPredicted ? 'rgba(255,255,255,0.2)' : 'rgba(201,148,10,0.5)',
-                              textTransform: 'none',
-                              fontWeight: 600,
-                              fontSize: '12px',
-                              px: 1.5,
-                              py: 0.5,
-                              borderRadius: '8px',
-                              whiteSpace: 'nowrap',
-                              minWidth: 'auto',
-                              '&:hover': {
-                                borderColor: hasPredicted ? '#fff' : '#C9940A',
-                                bgcolor: 'rgba(255,255,255,0.05)'
-                              }
-                            }}
-                          >
-                            {hasPredicted ? 'Ver Palpite' : 'Palpitar'}
-                          </Button>
-
-                          {isOwner && (
-                            <DeletePoolButton
-                              poolId={pool.id}
-                              groupId={id}
-                              poolName={pool.name}
-                            />
-                          )}
-                        </Stack>
-                      </Box>
-                    </Box>
-                  </Link>
-                )
-              })}
-            </Box>
-          )}
+          <GroupPoolsList
+            groupId={id}
+            isOwner={isOwner}
+            pools={filteredPools}
+            predictedPoolIds={[...predictedPoolIds]}
+            activeTab={activeTab}
+          />
         </Box>
 
         <Box>

@@ -16,6 +16,7 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CheckIcon from '@mui/icons-material/Check'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import PeopleIcon from '@mui/icons-material/People'
 import Link from 'next/link'
 import { savePredictions } from '../../actions'
 import { useRouter } from 'next/navigation'
@@ -48,11 +49,12 @@ interface PredictClientProps {
   poolId: string
   poolName: string
   poolType: string
+  poolStatus: string
   matches: Match[]
   initialPredictions: any[]
 }
 
-export default function PredictClient({ groupId, poolId, poolName, poolType, matches, initialPredictions }: PredictClientProps) {
+export default function PredictClient({ groupId, poolId, poolName, poolType, poolStatus, matches, initialPredictions }: PredictClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -113,27 +115,27 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, mat
 
   const handleScoreChange = (matchId: string, team: 'home' | 'away', scoreStr: string) => {
     if (alreadyPredicted) return
-    
+
     // Only allow numbers
     if (scoreStr !== '' && !/^\d+$/.test(scoreStr)) return
 
     setPredictions(prev => prev.map(p => {
       if (p.matchId !== matchId) return p
-      
+
       let currentPrediction = p.prediction || '-'
       let [home, away] = currentPrediction.split('-')
-      
+
       if (team === 'home') {
         home = scoreStr
       } else {
         away = scoreStr
       }
-      
+
       // Se ambos estiverem vazios, volta pra null
       if (home === '' && away === '') {
         return { ...p, prediction: null }
       }
-      
+
       return { ...p, prediction: `${home}-${away}` }
     }))
     setSuccess(false)
@@ -151,7 +153,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, mat
       }
       return p.prediction !== null
     })
-    
+
     if (!isComplete) {
       setError('Por favor, faça suas escolhas para todos os jogos.')
       return
@@ -179,39 +181,55 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, mat
   return (
     <Box sx={{ pb: 10, px: { xs: 2, md: 0 }, maxWidth: 800, mx: 'auto' }}>
       {/* Header */}
-      <Box sx={{ py: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Link href={`/dashboard/groups/${groupId}`} passHref>
-            <IconButton sx={{ color: 'rgba(255,255,255,0.7)', bgcolor: 'rgba(255,255,255,0.05)' }}>
-              <ArrowBackIcon />
-            </IconButton>
-          </Link>
-          <Box>
-            <Typography variant="h5" sx={{ color: '#fff', fontWeight: 'bold' }}>{poolName}</Typography>
-            <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
+      <Box sx={{ pt: 2, pb: 1.5 }}>
+        <Link href={`/dashboard/groups/${groupId}`} passHref>
+          <IconButton sx={{ color: 'rgba(255,255,255,0.7)', bgcolor: 'rgba(255,255,255,0.05)', mb: 1.5 }}>
+            <ArrowBackIcon />
+          </IconButton>
+        </Link>
+
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mt: 2 }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{
+              color: '#fff',
+              fontWeight: 'bold',
+              fontSize: { xs: 19, md: 22 },
+              lineHeight: 1.2,
+              mb: 0.5,
+            }}>
+              {poolName}
+            </Typography>
+            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
               {alreadyPredicted ? 'Visualizando seus palpites' : (poolType === 'score' ? 'Qual o placar?' : 'Quem vence?')}
             </Typography>
           </Box>
-        </Box>
 
-        <Button
-          onClick={() => setShowGroupPredictions(true)}
-          sx={{
-            color: '#C9940A',
-            fontSize: 12,
-            fontWeight: 700,
-            textTransform: 'none',
-            bgcolor: 'rgba(201,148,10,0.05)',
-            px: 2,
-            borderRadius: '8px',
-            '&:hover': { bgcolor: 'rgba(201,148,10,0.1)' }
-          }}
-        >
-          Palpites do Grupo
-        </Button>
+          <IconButton
+            onClick={() => setShowGroupPredictions(true)}
+            sx={{
+              color: '#C9940A',
+              bgcolor: 'rgba(201,148,10,0.05)',
+              borderRadius: '8px',
+              flexShrink: 0,
+              gap: 0.5,
+              px: { xs: 1, md: 2 },
+              '&:hover': { bgcolor: 'rgba(201,148,10,0.1)' }
+            }}
+          >
+            <PeopleIcon sx={{ fontSize: 18 }} />
+            <Typography sx={{
+              display: { xs: 'none', md: 'block' },
+              color: '#C9940A',
+              fontSize: 12,
+              fontWeight: 700,
+            }}>
+              Palpites do Grupo
+            </Typography>
+          </IconButton>
+        </Box>
       </Box>
 
-      {alreadyPredicted && (
+      {alreadyPredicted && poolStatus !== 'finished' && (
         <Paper sx={{
           bgcolor: 'rgba(201,148,10,0.05)',
           p: 2.5,
@@ -373,108 +391,108 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, mat
               ) : (
                 <Box sx={{ display: 'flex', alignItems: 'stretch' }}>
                   {/* Team A Selection */}
-                <Box
-                  onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Time A')}
-                  sx={{
-                    flex: 1,
-                    p: 2,
-                    textAlign: 'center',
-                    cursor: isDisabled ? 'default' : 'pointer',
-                    bgcolor: currentChoice === 'Time A' ? `${selectedGold}15` : 'transparent',
-                    borderRight: '1px solid rgba(255,255,255,0.05)',
-                    transition: 'all 0.2s',
-                    position: 'relative',
-                    '&:hover': !isDisabled && !loading ? { bgcolor: currentChoice === 'Time A' ? `${selectedGold}25` : 'rgba(255,255,255,0.02)' } : {}
-                  }}
-                >
-                  {currentChoice === 'Time A' && (
-                    <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: selectedGold }} />
-                  )}
-                  <Avatar
-                    src={getFlagUrl(match.home_team, 80)}
-                    sx={{ width: 40, height: 40, mx: 'auto', mb: 1.5, border: currentChoice === 'Time A' ? `2px solid ${selectedGold}` : '1px solid rgba(255,255,255,0.1)' }}
+                  <Box
+                    onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Time A')}
+                    sx={{
+                      flex: 1,
+                      p: 2,
+                      textAlign: 'center',
+                      cursor: isDisabled ? 'default' : 'pointer',
+                      bgcolor: currentChoice === 'Time A' ? `${selectedGold}15` : 'transparent',
+                      borderRight: '1px solid rgba(255,255,255,0.05)',
+                      transition: 'all 0.2s',
+                      position: 'relative',
+                      '&:hover': !isDisabled && !loading ? { bgcolor: currentChoice === 'Time A' ? `${selectedGold}25` : 'rgba(255,255,255,0.02)' } : {}
+                    }}
                   >
-                    {match.home_team.charAt(0)}
-                  </Avatar>
-                  <Typography sx={{ color: currentChoice === 'Time A' ? selectedGold : '#fff', fontWeight: 700, fontSize: 13 }}>
-                    {translateTeam(match.home_team)}
-                  </Typography>
-                  <Typography sx={{ color: isDisabled && currentChoice !== 'Time A' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
-                    {currentChoice === 'Time A' ? 'ESCOLHIDO' : 'VENCE'}
-                  </Typography>
-                </Box>
+                    {currentChoice === 'Time A' && (
+                      <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: selectedGold }} />
+                    )}
+                    <Avatar
+                      src={getFlagUrl(match.home_team, 80)}
+                      sx={{ width: 40, height: 40, mx: 'auto', mb: 1.5, border: currentChoice === 'Time A' ? `2px solid ${selectedGold}` : '1px solid rgba(255,255,255,0.1)' }}
+                    >
+                      {match.home_team.charAt(0)}
+                    </Avatar>
+                    <Typography sx={{ color: currentChoice === 'Time A' ? selectedGold : '#fff', fontWeight: 700, fontSize: 13 }}>
+                      {translateTeam(match.home_team)}
+                    </Typography>
+                    <Typography sx={{ color: isDisabled && currentChoice !== 'Time A' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
+                      {currentChoice === 'Time A' ? 'ESCOLHIDO' : 'VENCE'}
+                    </Typography>
+                  </Box>
 
-                {/* Draw Selection */}
-                <Box
-                  onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Empate')}
-                  sx={{
-                    flex: 0.6,
-                    p: 2,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                    cursor: isDisabled ? 'default' : 'pointer',
-                    bgcolor: currentChoice === 'Empate' ? 'rgba(255,255,255,0.08)' : 'transparent',
-                    borderRight: '1px solid rgba(255,255,255,0.05)',
-                    transition: 'all 0.2s',
-                    position: 'relative',
-                    '&:hover': !isDisabled && !loading ? { bgcolor: currentChoice === 'Empate' ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.02)' } : {}
-                  }}
-                >
-                  {currentChoice === 'Empate' && (
-                    <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: 'rgba(255,255,255,0.4)' }} />
-                  )}
-                  <Typography sx={{
-                    color: currentChoice === 'Empate' ? '#fff' : 'rgba(255,255,255,0.2)',
-                    fontWeight: 900,
-                    fontSize: 18,
-                    letterSpacing: '1px'
-                  }}>
-                    {match.home_score !== null ? `${match.home_score} x ${match.away_score}` : 'X'}
-                  </Typography>
-                  <Typography sx={{
-                    color: currentChoice === 'Empate' ? '#fff' : 'rgba(255,255,255,0.2)',
-                    fontSize: 9,
-                    fontWeight: 800,
-                    mt: 0.5
-                  }}>
-                    EMPATE
-                  </Typography>
-                </Box>
-
-                {/* Team B Selection */}
-                <Box
-                  onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Time B')}
-                  sx={{
-                    flex: 1,
-                    p: 2,
-                    textAlign: 'center',
-                    cursor: isDisabled ? 'default' : 'pointer',
-                    bgcolor: currentChoice === 'Time B' ? `${selectedGold}15` : 'transparent',
-                    transition: 'all 0.2s',
-                    position: 'relative',
-                    '&:hover': !isDisabled && !loading ? { bgcolor: currentChoice === 'Time B' ? `${selectedGold}25` : 'rgba(255,255,255,0.02)' } : {}
-                  }}
-                >
-                  {currentChoice === 'Time B' && (
-                    <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: selectedGold }} />
-                  )}
-                  <Avatar
-                    src={getFlagUrl(match.away_team, 80)}
-                    sx={{ width: 40, height: 40, mx: 'auto', mb: 1.5, border: currentChoice === 'Time B' ? `2px solid ${selectedGold}` : '1px solid rgba(255,255,255,0.1)' }}
+                  {/* Draw Selection */}
+                  <Box
+                    onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Empate')}
+                    sx={{
+                      flex: 0.6,
+                      p: 2,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      cursor: isDisabled ? 'default' : 'pointer',
+                      bgcolor: currentChoice === 'Empate' ? 'rgba(255,255,255,0.08)' : 'transparent',
+                      borderRight: '1px solid rgba(255,255,255,0.05)',
+                      transition: 'all 0.2s',
+                      position: 'relative',
+                      '&:hover': !isDisabled && !loading ? { bgcolor: currentChoice === 'Empate' ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.02)' } : {}
+                    }}
                   >
-                    {match.away_team.charAt(0)}
-                  </Avatar>
-                  <Typography sx={{ color: currentChoice === 'Time B' ? selectedGold : '#fff', fontWeight: 700, fontSize: 13 }}>
-                    {translateTeam(match.away_team)}
-                  </Typography>
-                  <Typography sx={{ color: isDisabled && currentChoice !== 'Time B' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
-                    {currentChoice === 'Time B' ? 'ESCOLHIDO' : 'VENCE'}
-                  </Typography>
+                    {currentChoice === 'Empate' && (
+                      <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: 'rgba(255,255,255,0.4)' }} />
+                    )}
+                    <Typography sx={{
+                      color: currentChoice === 'Empate' ? '#fff' : 'rgba(255,255,255,0.2)',
+                      fontWeight: 900,
+                      fontSize: 18,
+                      letterSpacing: '1px'
+                    }}>
+                      {match.home_score !== null ? `${match.home_score} x ${match.away_score}` : 'X'}
+                    </Typography>
+                    <Typography sx={{
+                      color: currentChoice === 'Empate' ? '#fff' : 'rgba(255,255,255,0.2)',
+                      fontSize: 9,
+                      fontWeight: 800,
+                      mt: 0.5
+                    }}>
+                      EMPATE
+                    </Typography>
+                  </Box>
+
+                  {/* Team B Selection */}
+                  <Box
+                    onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Time B')}
+                    sx={{
+                      flex: 1,
+                      p: 2,
+                      textAlign: 'center',
+                      cursor: isDisabled ? 'default' : 'pointer',
+                      bgcolor: currentChoice === 'Time B' ? `${selectedGold}15` : 'transparent',
+                      transition: 'all 0.2s',
+                      position: 'relative',
+                      '&:hover': !isDisabled && !loading ? { bgcolor: currentChoice === 'Time B' ? `${selectedGold}25` : 'rgba(255,255,255,0.02)' } : {}
+                    }}
+                  >
+                    {currentChoice === 'Time B' && (
+                      <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: selectedGold }} />
+                    )}
+                    <Avatar
+                      src={getFlagUrl(match.away_team, 80)}
+                      sx={{ width: 40, height: 40, mx: 'auto', mb: 1.5, border: currentChoice === 'Time B' ? `2px solid ${selectedGold}` : '1px solid rgba(255,255,255,0.1)' }}
+                    >
+                      {match.away_team.charAt(0)}
+                    </Avatar>
+                    <Typography sx={{ color: currentChoice === 'Time B' ? selectedGold : '#fff', fontWeight: 700, fontSize: 13 }}>
+                      {translateTeam(match.away_team)}
+                    </Typography>
+                    <Typography sx={{ color: isDisabled && currentChoice !== 'Time B' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
+                      {currentChoice === 'Time B' ? 'ESCOLHIDO' : 'VENCE'}
+                    </Typography>
+                  </Box>
                 </Box>
-              </Box>
               )}
 
               {isStarted && !alreadyPredicted && (

@@ -10,7 +10,7 @@ const WC_START = new Date('2026-06-11T19:00:00Z')
 
 function getTimeLeft() {
   const diff = WC_START.getTime() - Date.now()
-  if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 }
+  if (diff <= 0) return null
   return {
     days: Math.floor(diff / 86_400_000),
     hours: Math.floor((diff % 86_400_000) / 3_600_000),
@@ -70,24 +70,22 @@ function Separator() {
 }
 
 export default function CountdownClient() {
-  const [time, setTime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+  const [time, setTime] = useState<ReturnType<typeof getTimeLeft>>({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     setTime(getTimeLeft())
     const id = setInterval(() => setTime(getTimeLeft()), 1000)
     return () => clearInterval(id)
   }, [])
 
+  const started = mounted && time === null
+
   return (
-    <Box sx={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 2,
-    }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
       {/* Logo da Copa */}
       <Box sx={{ position: 'relative' }}>
-        {/* Glow atrás da taça */}
         <Box sx={{
           position: 'absolute',
           inset: 0,
@@ -128,24 +126,42 @@ export default function CountdownClient() {
           },
         }} />
         <Typography sx={{ fontSize: 11, color: '#C9940A', fontWeight: 500 }}>
-          Contagem regressiva · Copa 2026
+          {started ? 'Ao vivo · Copa 2026' : 'Contagem regressiva · Copa 2026'}
         </Typography>
       </Box>
 
-      {/* Timer */}
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'flex-end',
-        gap: { xs: 0.5, sm: 0.75 },
-      }}>
-        <TimeUnit value={time.days} label="dias" />
-        <Separator />
-        <TimeUnit value={time.hours} label="horas" />
-        <Separator />
-        <TimeUnit value={time.minutes} label="min" />
-        <Separator />
-        <TimeUnit value={time.seconds} label="seg" />
-      </Box>
+      {started ? (
+        /* Copa em andamento */
+        <Box sx={{ textAlign: 'center' }}>
+          <Typography sx={{
+            fontSize: { xs: 24, sm: 28 },
+            fontWeight: 600,
+            color: '#fff',
+            lineHeight: 1.2,
+            letterSpacing: '-0.5px',
+          }}>
+            Copa em andamento!
+          </Typography>
+          <Typography sx={{
+            fontSize: 13,
+            color: 'rgba(255,255,255,0.4)',
+            mt: 0.75,
+          }}>
+            Faça seus palpites antes do apito inicial.
+          </Typography>
+        </Box>
+      ) : (
+        /* Timer */
+        <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: { xs: 0.5, sm: 0.75 } }}>
+          <TimeUnit value={time!.days} label="dias" />
+          <Separator />
+          <TimeUnit value={time!.hours} label="horas" />
+          <Separator />
+          <TimeUnit value={time!.minutes} label="min" />
+          <Separator />
+          <TimeUnit value={time!.seconds} label="seg" />
+        </Box>
+      )}
     </Box>
   )
 }

@@ -252,15 +252,15 @@ function MatchCard({ match }: { match: any }) {
       px: 3,
       py: 2.5,
     }}>
-      <Box sx={{ 
-        display: 'flex', 
+      <Box sx={{
+        display: 'flex',
         flexDirection: 'column',
         alignItems: { xs: 'center', md: 'flex-start' }
       }}>
-        <Typography sx={{ 
-          fontSize: 12, 
-          color: 'rgba(255,255,255,0.4)', 
-          mb: 1, 
+        <Typography sx={{
+          fontSize: 12,
+          color: 'rgba(255,255,255,0.4)',
+          mb: 1,
           letterSpacing: '0.05em',
           textAlign: { xs: 'center', md: 'left' }
         }}>
@@ -324,7 +324,7 @@ function MatchCard({ match }: { match: any }) {
 function translate(match: any) {
   switch (match.status) {
     case 'scheduled':
-      return 'Aguardo'
+      return 'Em breve'
     case 'live':
     case 'in_play':
     case 'playing':
@@ -332,7 +332,7 @@ function translate(match: any) {
     case 'finished':
     case 'completed':
     case 'completes':
-      return match.result || `${match.home_score}-${match.away_score}`
+      return 'Finalizado'
     default:
       return match.status || ''
   }

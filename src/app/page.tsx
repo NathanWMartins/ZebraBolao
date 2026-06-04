@@ -309,7 +309,7 @@ export default function LandingPage() {
             },
             {
               q: 'Até quando posso fazer meu palpite?',
-              a: 'Os palpites ficam abertos até o apito inicial da partida. Após o início do jogo, não é mais possível alterar ou registrar palpites para aquela rodada.',
+              a: 'Os palpites ficam abertos até o apito inicial da partida. Após o início do jogo, não é mais possível registrar palpites para aquela rodada.',
             },
             {
               q: 'Como é calculada a pontuação?',

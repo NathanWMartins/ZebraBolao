@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
@@ -11,6 +11,18 @@ interface Props {
 
 export default function DashboardClient({ user }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [menuOpen])
   const supabase = createClient()
   const router = useRouter()
 
@@ -30,7 +42,7 @@ export default function DashboardClient({ user }: Props) {
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div ref={containerRef} style={{ position: 'relative' }}>
       {/* Avatar button */}
       <button
         onClick={() => setMenuOpen((v) => !v)}
@@ -93,14 +105,7 @@ export default function DashboardClient({ user }: Props) {
 
       {/* Dropdown */}
       {menuOpen && (
-        <>
-          {/* Backdrop */}
-          <div
-            style={{ position: 'fixed', inset: 0, zIndex: 10 }}
-            onClick={() => setMenuOpen(false)}
-          />
-
-          <div style={{
+        <div style={{
             position: 'absolute',
             top: 'calc(100% + 8px)',
             right: 0,
@@ -151,7 +156,6 @@ export default function DashboardClient({ user }: Props) {
               Sair
             </button>
           </div>
-        </>
       )}
     </div>
   )
