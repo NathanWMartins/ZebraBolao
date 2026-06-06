@@ -172,37 +172,48 @@ function ActionCard({
       bgcolor: highlight ? 'rgba(201,148,10,0.07)' : 'rgba(0,0,0,0.5)',
       border: `0.5px solid ${highlight ? 'rgba(201,148,10,0.25)' : 'rgba(255,255,255,0.08)'}`,
       borderRadius: '12px',
-      p: 3,
+      p: { xs: 1.5, sm: 3 },
       display: 'flex',
-      flexDirection: 'column',
-      gap: 1.5,
+      flexDirection: { xs: 'row', sm: 'column' },
+      alignItems: { xs: 'center', sm: 'flex-start' },
+      gap: { xs: 1.5, sm: 1.5 },
       cursor: 'pointer',
       transition: 'border-color 0.2s, background-color 0.2s',
       height: '100%',
     }}>
       <Box sx={{
-        width: 40,
-        height: 40,
+        width: { xs: 36, sm: 40 },
+        height: { xs: 36, sm: 40 },
+        flexShrink: 0,
         borderRadius: '10px',
         bgcolor: highlight ? 'rgba(201,148,10,0.15)' : 'rgba(255,255,255,0.06)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         color: highlight ? '#C9940A' : 'rgba(255,255,255,0.5)',
+        '& svg': { fontSize: { xs: 18, sm: 22 } },
       }}>
         {icon}
       </Box>
 
-      <Box>
-        <Typography sx={{ color: '#fff', fontWeight: 500, fontSize: 15, mb: 0.75 }}>
-          {title}
-        </Typography>
-        <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, lineHeight: 1.5 }}>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography sx={{ color: '#fff', fontWeight: 500, fontSize: { xs: 13, sm: 15 }, mb: { xs: 0, sm: 0.75 } }}>
+            {title}
+          </Typography>
+          <Box sx={{ display: { xs: 'flex', sm: 'none' }, alignItems: 'center', gap: 0.25, flexShrink: 0 }}>
+            <Typography sx={{ fontSize: 12, color: highlight ? '#C9940A' : 'rgba(255,255,255,0.5)', fontWeight: 500 }}>
+              {cta}
+            </Typography>
+            <ArrowForwardIcon sx={{ fontSize: 12, color: highlight ? '#C9940A' : 'rgba(255,255,255,0.5)' }} />
+          </Box>
+        </Box>
+        <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: { xs: 11, sm: 13 }, lineHeight: 1.4, display: { xs: 'none', sm: 'block' } }}>
           {description}
         </Typography>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+      <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.5, mt: 0.5 }}>
         <Typography sx={{
           fontSize: 13,
           color: highlight ? '#C9940A' : 'rgba(255,255,255,0.5)',
