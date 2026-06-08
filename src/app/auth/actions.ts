@@ -80,6 +80,32 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
   return { success: true }
 }
 
+export async function updatePassword(prevState: any, formData: FormData) {
+  const password = formData.get('password') as string
+  const confirmPassword = formData.get('confirmPassword') as string
+
+  if (!password || !confirmPassword) {
+    return { error: 'Preencha todos os campos.' }
+  }
+
+  if (password.length < 8) {
+    return { error: 'A senha deve ter no mínimo 8 caracteres.' }
+  }
+
+  if (password !== confirmPassword) {
+    return { error: 'As senhas não coincidem.' }
+  }
+
+  const supabase = await createServerSupabaseClient()
+  const { error } = await supabase.auth.updateUser({ password })
+
+  if (error) {
+    return { error: 'Erro ao atualizar a senha. O link pode ter expirado.' }
+  }
+
+  redirect('/dashboard')
+}
+
 export async function sendPasswordReset(prevState: any, formData: FormData) {
   const email = (formData.get('email') as string)?.trim().toLowerCase()
 
@@ -90,7 +116,7 @@ export async function sendPasswordReset(prevState: any, formData: FormData) {
   const supabase = await createServerSupabaseClient()
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`,
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?next=/auth/update-password`,
   })
 
   if (error) {
