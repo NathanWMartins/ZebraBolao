@@ -13,6 +13,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import TeamFlag from '../components/TeamFlag'
 import { translateTeam } from '@/lib/teamTranslations'
+import TournamentStats from './TournamentStats'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
@@ -42,6 +43,24 @@ export default async function DashboardPage() {
     .gte('match_date', targetDateObj.toISOString())
     .lt('match_date', nextDateObj.toISOString())
     .order('match_date', { ascending: true })
+
+  const { data: topScorers, error: scorersError } = await supabase
+    .from('player_stats')
+    .select('*')
+    .gt('goals', 0)
+    .order('goals', { ascending: false })
+    .limit(3)
+
+  const { data: topAssists, error: assistsError } = await supabase
+    .from('player_stats')
+    .select('*')
+    .gt('assists', 0)
+    .order('assists', { ascending: false })
+    .limit(3)
+
+  const showStats = !scorersError && !assistsError
+  const adminEmails = [process.env.ADMIN_EMAIL, 'nathanwm2002@gmail.com', 'nathan.wm.2002@gmail.com']
+  const isAdmin = !!user.email && adminEmails.includes(user.email)
 
   return (
     <Box component="main" sx={{ maxWidth: 1200, mx: 'auto', px: 4, py: 6 }}>
@@ -108,45 +127,56 @@ export default async function DashboardPage() {
         />
       </Box>
 
-      <Box component="section">
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Typography sx={{
-            fontSize: 14,
-            fontWeight: 500,
-            color: 'rgba(255,255,255,0.6)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}>
-            Próximos jogos
-          </Typography>
-          <Link href="/dashboard/matches" style={{ textDecoration: 'none' }}>
-            <Typography sx={{ fontSize: 12, color: '#C9940A', cursor: 'pointer', '&:hover': { color: '#E6AC10' } }}>
-              Ver todos →
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4 }}>
+        {/* Próximos Jogos */}
+        <Box component="section" sx={{ flex: { xs: '1 1 auto', md: '2 1 0%' } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography sx={{
+              fontSize: 14,
+              fontWeight: 500,
+              color: 'rgba(255,255,255,0.6)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+            }}>
+              Próximos jogos
             </Typography>
-          </Link>
+            <Link href="/dashboard/matches" style={{ textDecoration: 'none' }}>
+              <Typography sx={{ fontSize: 12, color: '#C9940A', cursor: 'pointer', '&:hover': { color: '#E6AC10' } }}>
+                Ver todos →
+              </Typography>
+            </Link>
+          </Box>
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {matches && matches.length > 0 ? (
+              matches.map((match) => (
+                <MatchCard key={match.id} match={match} />
+              ))
+            ) : (
+              <Box sx={{
+                bgcolor: 'rgba(0,0,0,0.5)',
+                border: '0.5px solid rgba(255,255,255,0.08)',
+                borderRadius: '12px',
+                px: 3,
+                py: 4,
+                textAlign: 'center',
+              }}>
+                <CalendarMonthIcon sx={{ fontSize: 36, color: 'rgba(255,255,255,0.2)', mb: 1.5 }} />
+                <Typography sx={{ color: 'rgba(255,255,255,0.35)', fontSize: 14, lineHeight: 1.6 }}>
+                  Nenhum jogo previsto para este dia.
+                </Typography>
+              </Box>
+            )}
+          </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {matches && matches.length > 0 ? (
-            matches.map((match) => (
-              <MatchCard key={match.id} match={match} />
-            ))
-          ) : (
-            <Box sx={{
-              bgcolor: 'rgba(0,0,0,0.5)',
-              border: '0.5px solid rgba(255,255,255,0.08)',
-              borderRadius: '12px',
-              px: 3,
-              py: 4,
-              textAlign: 'center',
-            }}>
-              <CalendarMonthIcon sx={{ fontSize: 36, color: 'rgba(255,255,255,0.2)', mb: 1.5 }} />
-              <Typography sx={{ color: 'rgba(255,255,255,0.35)', fontSize: 14, lineHeight: 1.6 }}>
-                Nenhum jogo previsto para este dia.
-              </Typography>
-            </Box>
-          )}
-        </Box>
+        {/* Estatísticas */}
+        <TournamentStats 
+          topScorers={topScorers || []} 
+          topAssists={topAssists || []} 
+          isAdmin={isAdmin} 
+          showStats={showStats} 
+        />
       </Box>
     </Box>
   )

@@ -215,6 +215,13 @@ export async function getSpecialPredictions(poolId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Usuário não autenticado.')
 
+  // Verifica permissão
+  const { data: pool } = await supabase.from('pools').select('group_id').eq('id', poolId).single()
+  if (!pool) throw new Error('Bolão não encontrado.')
+  
+  const { data: memberCheck } = await supabase.from('group_members').select('group_id').eq('group_id', pool.group_id).eq('user_id', user.id).maybeSingle()
+  if (!memberCheck) throw new Error('Sem permissão para visualizar este bolão.')
+
   const { data: bets, error } = await supabaseAdmin
     .from('special_predictions')
     .select('*')
@@ -252,6 +259,13 @@ export async function getPoolPredictions(poolId: string) {
     throw new Error('Usuário não autenticado.')
   }
 
+  // Verifica permissão
+  const { data: pool } = await supabase.from('pools').select('group_id').eq('id', poolId).single()
+  if (!pool) throw new Error('Bolão não encontrado.')
+  
+  const { data: memberCheck } = await supabase.from('group_members').select('group_id').eq('group_id', pool.group_id).eq('user_id', user.id).maybeSingle()
+  if (!memberCheck) throw new Error('Sem permissão para visualizar este bolão.')
+
   const { data, error } = await supabaseAdmin
     .from('predictions')
     .select(`
@@ -273,7 +287,11 @@ export async function getPoolPredictions(poolId: string) {
 }
 
 export async function getPoolRanking(poolId: string) {
+  const supabase = await createServerSupabaseClient()
   const supabaseAdmin = createAdminClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Usuário não autenticado.')
 
   // Busca o pool para saber group_id e match_ids
   const { data: pool } = await supabaseAdmin
@@ -281,6 +299,12 @@ export async function getPoolRanking(poolId: string) {
     .select('id, type, group_id, match_ids')
     .eq('id', poolId)
     .single()
+
+  if (!pool) return []
+
+  // Verifica permissão
+  const { data: memberCheck } = await supabase.from('group_members').select('group_id').eq('group_id', pool.group_id).eq('user_id', user.id).maybeSingle()
+  if (!memberCheck) throw new Error('Sem permissão para visualizar o ranking.')
 
   if (!pool) return []
 
@@ -349,7 +373,14 @@ export async function getPoolRanking(poolId: string) {
 }
 
 export async function getGroupRanking(groupId: string) {
+  const supabase = await createServerSupabaseClient()
   const supabaseAdmin = createAdminClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Usuário não autenticado.')
+
+  const { data: memberCheck } = await supabase.from('group_members').select('group_id').eq('group_id', groupId).eq('user_id', user.id).maybeSingle()
+  if (!memberCheck) throw new Error('Sem permissão para visualizar o ranking.')
 
   // Busca total_points por usuário da tabela scores (agregado por grupo)
   const { data: scores, error } = await supabaseAdmin
