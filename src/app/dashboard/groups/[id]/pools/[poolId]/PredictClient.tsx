@@ -65,12 +65,13 @@ interface PredictClientProps {
 const SPECIAL_BET_LABELS: Record<string, string> = {
   champion: 'Seleção Campeã',
   runner_up: 'Vice-Campeão',
+  third_place: '3° Colocado',
   top_scorer: 'Artilheiro',
   top_assist: 'Maior Assistente',
   most_cards: 'Mais Cartões',
 }
 
-const TEAM_BETS = ['champion', 'runner_up', 'most_cards']
+const TEAM_BETS = ['champion', 'runner_up', 'third_place', 'most_cards']
 const PLAYER_BETS = ['top_scorer', 'top_assist']
 
 

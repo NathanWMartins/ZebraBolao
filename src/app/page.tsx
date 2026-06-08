@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Box, Typography, Button, Modal, Paper } from '@mui/material'
+import { Box, Typography, Button, Modal, Paper, Divider } from '@mui/material'
 import { createClient } from '@/lib/supabase'
 import Image from 'next/image'
 import GridViewIcon from '@mui/icons-material/GridView'
@@ -10,7 +10,6 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import Link from 'next/link'
 import Footer from './components/Footer'
-import AdBanner from './components/AdBanner'
 
 export default function LandingPage() {
   const [modalOpen, setModalOpen] = useState(false)
@@ -128,13 +127,12 @@ export default function LandingPage() {
                 borderRadius: '10px',
                 px: 3.5, py: 1.6,
                 fontSize: 15,
-                fontWeight: 500,
+                fontWeight: 700,
                 textTransform: 'none',
                 '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
               }}
-              startIcon={<GoogleIcon />}
             >
-              Entrar com Google
+              Entrar
             </Button>
           </Box>
 
@@ -205,11 +203,6 @@ export default function LandingPage() {
             </Typography>
           </Box>
         ))}
-      </Box>
-
-      {/* Anúncio 1 — entre features e como funciona */}
-      <Box sx={{ px: 4, maxWidth: 1300, mx: 'auto' }}>
-        <AdBanner slot="6900894387" />
       </Box>
 
       {/* Como funciona */}
@@ -362,11 +355,6 @@ export default function LandingPage() {
         </Box>
       </Box>
 
-      {/* Anúncio 2 — entre FAQ e CTA */}
-      <Box sx={{ px: 4, maxWidth: 1300, mx: 'auto' }}>
-        <AdBanner slot="6900894387" />
-      </Box>
-
       {/* CTA final */}
       <Box sx={{
         px: 4, py: 8,
@@ -422,8 +410,8 @@ export default function LandingPage() {
             <Typography sx={{ color: '#fff', fontWeight: 500, fontSize: 20, mb: 1 }}>
               Entrar no Zebra
             </Typography>
-            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, mb: authError ? 2 : 3.5 }}>
-              Use sua conta Google para entrar ou criar sua conta.
+            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, mb: authError ? 2 : 2.5 }}>
+              Entre ou crie sua conta para jogar.
             </Typography>
 
             {/* Mensagem de erro do OAuth */}
@@ -451,18 +439,62 @@ export default function LandingPage() {
                 bgcolor: '#fff',
                 color: '#111110',
                 borderRadius: '10px',
-                py: 1.6,
+                py: 1.4,
                 fontSize: 14,
                 fontWeight: 500,
                 textTransform: 'none',
-                mb: 1.5,
+                mb: 2,
                 '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
               }}
               startIcon={<GoogleIcon />}
             >
               {loading ? 'Redirecionando...' : 'Continuar com Google'}
             </Button>
-            <Typography sx={{ color: 'rgba(255,255,255,0.25)', fontSize: 11 }}>
+
+            <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 2 }}>
+              <Typography sx={{ color: 'rgba(255,255,255,0.25)', fontSize: 12, px: 1 }}>ou</Typography>
+            </Divider>
+
+            <Box sx={{ display: 'flex', gap: 1.5, mb: 2 }}>
+              <Button
+                component="a"
+                href="/auth/login"
+                fullWidth
+                variant="outlined"
+                sx={{
+                  color: '#C9940A',
+                  borderColor: 'rgba(201,148,10,0.4)',
+                  borderRadius: '10px',
+                  py: 1.2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: 14,
+                  '&:hover': { borderColor: '#C9940A', bgcolor: 'rgba(201,148,10,0.06)' },
+                }}
+              >
+                Entrar
+              </Button>
+              <Button
+                component="a"
+                href="/auth/signup"
+                fullWidth
+                variant="outlined"
+                sx={{
+                  color: 'rgba(255,255,255,0.6)',
+                  borderColor: 'rgba(255,255,255,0.12)',
+                  borderRadius: '10px',
+                  py: 1.2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: 14,
+                  '&:hover': { borderColor: 'rgba(255,255,255,0.25)', bgcolor: 'rgba(255,255,255,0.04)' },
+                }}
+              >
+                Criar conta
+              </Button>
+            </Box>
+
+            <Typography sx={{ color: 'rgba(255,255,255,0.2)', fontSize: 11 }}>
               Ao entrar, você concorda com os termos de uso do Zebra.
             </Typography>
           </Paper>

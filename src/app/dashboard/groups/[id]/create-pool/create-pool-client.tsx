@@ -48,6 +48,7 @@ interface CreatePoolClientProps {
 const SPECIAL_BET_OPTIONS = [
   { key: 'champion', label: 'Seleção Campeã', description: 'Quem vence a Copa do Mundo' },
   { key: 'runner_up', label: 'Vice-Campeão', description: 'Quem perde a final' },
+  { key: 'third_place', label: '3° Colocado', description: 'Quem vence a disputa pelo bronze' },
   { key: 'top_scorer', label: 'Artilheiro', description: 'Maior goleador do torneio' },
   { key: 'top_assist', label: 'Maior Assistente', description: 'Jogador com mais assistências' },
   { key: 'most_cards', label: 'Mais Cartões', description: 'Seleção com mais cartões' },
@@ -96,7 +97,13 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
         ? prev.filter(id => !groupMatchIds.includes(id))
         : [...new Set([...prev, ...groupMatchIds])]
     )
-    setGroupAnchor(null)
+    // não fecha o popover para permitir múltiplas seleções
+  }
+
+  const handleSelectAllMatches = () => {
+    const allIds = initialMatches.map((m: Match) => m.id)
+    const allSelected = allIds.every((id: string) => selectedIds.includes(id))
+    setSelectedIds(allSelected ? [] : allIds)
   }
 
   const availableDates = useMemo(() => {
@@ -432,8 +439,29 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
           slotProps={{ paper: { sx: { bgcolor: 'rgba(20,20,20,0.98)', border: '1px solid rgba(201,148,10,0.3)', borderRadius: '16px', p: 2, backdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', minWidth: 220 } } }}
         >
           <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', mb: 1.5 }}>
-            Selecionar todos os jogos do grupo:
+            Selecionar por grupo:
           </Typography>
+
+          {/* Botão: todos os jogos */}
+          {(() => {
+            const allIds = initialMatches.map((m: Match) => m.id)
+            const allSelected = allIds.length > 0 && allIds.every((id: string) => selectedIds.includes(id))
+            return (
+              <Button onClick={handleSelectAllMatches} sx={{
+                width: '100%', mb: 1.5, py: 1, px: 1.5, borderRadius: '10px', border: '1px solid',
+                borderColor: allSelected ? '#C9940A' : 'rgba(255,255,255,0.15)',
+                bgcolor: allSelected ? 'rgba(201,148,10,0.15)' : 'rgba(255,255,255,0.03)',
+                color: allSelected ? '#C9940A' : 'rgba(255,255,255,0.7)',
+                fontWeight: 700, fontSize: 13, textTransform: 'none',
+                '&:hover': { bgcolor: 'rgba(201,148,10,0.1)', borderColor: '#C9940A' }
+              }}>
+                {allSelected ? 'Desmarcar todos os jogos' : 'Selecionar todos os jogos'}
+              </Button>
+            )
+          })()}
+
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 1.5 }} />
+
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             {availableGroups.map(group => {
               const groupMatchIds = initialMatches.filter((m: Match) => m.group_name === group && m.round === 'group').map((m: Match) => m.id)

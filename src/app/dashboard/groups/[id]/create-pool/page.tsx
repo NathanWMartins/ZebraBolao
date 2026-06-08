@@ -22,10 +22,11 @@ export default async function CreatePoolPage(props: { params: Promise<{ id: stri
     redirect(`/dashboard/groups/${id}`)
   }
 
-  // Buscar todos os jogos da Copa para seleção
+  // Buscar apenas jogos agendados para seleção
   const { data: matches } = await supabase
     .from('matches')
     .select('*')
+    .eq('status', 'scheduled')
     .order('match_date', { ascending: true })
 
   return (

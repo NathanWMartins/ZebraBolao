@@ -23,6 +23,7 @@ import { translateTeam } from '@/lib/teamTranslations'
 const SPECIAL_BET_LABELS: Record<string, string> = {
   champion: 'Seleção Campeã',
   runner_up: 'Vice-Campeão',
+  third_place: '3° Colocado',
   top_scorer: 'Artilheiro',
   top_assist: 'Maior Assistente',
   most_cards: 'Mais Cartões',
