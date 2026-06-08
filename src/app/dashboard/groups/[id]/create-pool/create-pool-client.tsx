@@ -49,6 +49,7 @@ const SPECIAL_BET_OPTIONS = [
   { key: 'champion', label: 'Seleção Campeã', description: 'Quem vence a Copa do Mundo' },
   { key: 'runner_up', label: 'Vice-Campeão', description: 'Quem perde a final' },
   { key: 'top_scorer', label: 'Artilheiro', description: 'Maior goleador do torneio' },
+  { key: 'top_assist', label: 'Maior Assistente', description: 'Jogador com mais assistências' },
   { key: 'most_cards', label: 'Mais Cartões', description: 'Seleção com mais cartões' },
 ]
 
