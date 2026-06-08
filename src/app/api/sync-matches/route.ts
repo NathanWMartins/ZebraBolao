@@ -4,7 +4,8 @@ import { createAdminClient } from '@/lib/supabase-admin'
 import type { WC2026MatchAPI } from '@/lib/wc2026'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-const SYNC_SECRET = process.env.SYNC_SECRET || 'zebra-sync-secret'
+const SYNC_SECRET = process.env.SYNC_SECRET
+if (!SYNC_SECRET) throw new Error('SYNC_SECRET env variable is required')
 
 async function upsertMatches(supabase: SupabaseClient, apiMatches: WC2026MatchAPI[]) {
   const rows = apiMatches.map((match) => ({

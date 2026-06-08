@@ -7,6 +7,9 @@ export async function createPool(groupId: string, name: string, matchIds: string
   if (!name || name.trim() === '') {
     return { error: 'O nome do bolão é obrigatório.' }
   }
+  if (name.trim().length > 100) {
+    return { error: 'O nome do bolão deve ter no máximo 100 caracteres.' }
+  }
 
   const isSpecial = type === 'special'
 
@@ -38,6 +41,17 @@ export async function createPool(groupId: string, name: string, matchIds: string
 
   if (group.owner_id !== user.id) {
     return { error: 'Apenas o administrador pode criar um bolão.' }
+  }
+
+  // Validar que os matchIds existem no banco (previne IDs fabricados)
+  if (!isSpecial && matchIds.length > 0) {
+    const { data: validMatches, error: matchesError } = await supabase
+      .from('matches')
+      .select('id')
+      .in('id', matchIds)
+    if (matchesError || !validMatches || validMatches.length !== matchIds.length) {
+      return { error: 'Um ou mais jogos selecionados são inválidos.' }
+    }
   }
 
   // Criar o bolão

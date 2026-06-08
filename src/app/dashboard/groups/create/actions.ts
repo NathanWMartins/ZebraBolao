@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
+import bcrypt from 'bcryptjs'
 
 function generateInviteCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -20,6 +21,9 @@ export async function createGroup(prevState: any, formData: FormData) {
 
   if (!name || name.trim() === '') {
     return { error: 'O nome do grupo é obrigatório.' }
+  }
+  if (name.trim().length > 100) {
+    return { error: 'O nome do grupo deve ter no máximo 100 caracteres.' }
   }
   
   if (isPrivate && (!password || password.trim() === '')) {
@@ -42,7 +46,7 @@ export async function createGroup(prevState: any, formData: FormData) {
       owner_id: user.id,
       invite_code,
       is_private: isPrivate,
-      password: password
+      password: password ? await bcrypt.hash(password, 10) : null
     }])
     .select()
     .single()

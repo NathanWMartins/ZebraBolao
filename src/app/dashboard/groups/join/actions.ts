@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { redirect } from 'next/navigation'
+import bcrypt from 'bcryptjs'
 
 export async function joinGroup(prevState: any, formData: FormData) {
   const inviteCode = formData.get('code') as string
@@ -36,7 +37,8 @@ export async function joinGroup(prevState: any, formData: FormData) {
     if (!password || password.trim() === '') {
       return { error: 'Este grupo é privado. A senha é obrigatória.' }
     }
-    if (group.password !== password) {
+    const passwordMatch = await bcrypt.compare(password, group.password || '')
+    if (!passwordMatch) {
       return { error: 'Senha incorreta para este grupo.' }
     }
   }
