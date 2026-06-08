@@ -80,6 +80,7 @@ export default function DashboardClient({ user }: Props) {
               alt={name}
               width={26}
               height={26}
+              referrerPolicy="no-referrer"
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (

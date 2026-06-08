@@ -15,10 +15,17 @@ import {
   Grid
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
-import { getPoolPredictions } from '../../actions'
+import { getPoolPredictions, getSpecialPredictions } from '../../actions'
 import { Check } from '@mui/icons-material'
 import TeamFlag from '@/app/components/TeamFlag'
 import { translateTeam } from '@/lib/teamTranslations'
+
+const SPECIAL_BET_LABELS: Record<string, string> = {
+  champion: 'Seleção Campeã',
+  runner_up: 'Vice-Campeão',
+  top_scorer: 'Artilheiro',
+  most_cards: 'Mais Cartões',
+}
 
 interface Match {
   id: string
@@ -42,6 +49,16 @@ interface Prediction {
   }
 }
 
+interface SpecialPrediction {
+  user_id: string
+  bet_type: string
+  value: string
+  profiles: {
+    username: string
+    avatar_url: string | null
+  }
+}
+
 interface PredictionsModalProps {
   open: boolean
   onClose: () => void
@@ -53,7 +70,10 @@ interface PredictionsModalProps {
 export default function PredictionsModal({ open, onClose, poolId, poolType = 'winner', matches }: PredictionsModalProps) {
   const [loading, setLoading] = useState(true)
   const [predictions, setPredictions] = useState<Prediction[]>([])
+  const [specialPredictions, setSpecialPredictions] = useState<SpecialPrediction[]>([])
   const [error, setError] = useState<string | null>(null)
+
+  const isSpecialOnly = matches.length === 0
 
   useEffect(() => {
     if (open) {
@@ -65,8 +85,13 @@ export default function PredictionsModal({ open, onClose, poolId, poolType = 'wi
     setLoading(true)
     setError(null)
     try {
-      const data = await getPoolPredictions(poolId)
-      setPredictions(data as any)
+      if (isSpecialOnly) {
+        const data = await getSpecialPredictions(poolId)
+        setSpecialPredictions(data as any)
+      } else {
+        const data = await getPoolPredictions(poolId)
+        setPredictions(data as any)
+      }
     } catch (err) {
       setError('Erro ao carregar os palpites.')
     } finally {
@@ -119,6 +144,45 @@ export default function PredictionsModal({ open, onClose, poolId, poolType = 'wi
           </Box>
         ) : error ? (
           <Typography sx={{ color: '#ff4444', textAlign: 'center', py: 4 }}>{error}</Typography>
+        ) : isSpecialOnly ? (
+          // Exibe apostas especiais agrupadas por tipo
+          <Stack spacing={3}>
+            {Object.keys(SPECIAL_BET_LABELS).filter(betType =>
+              specialPredictions.some(p => p.bet_type === betType)
+            ).map(betType => {
+              const bets = specialPredictions.filter(p => p.bet_type === betType)
+              return (
+                <Box key={betType} sx={{ bgcolor: 'rgba(255,255,255,0.02)', p: 2, borderRadius: '12px' }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', mb: 1.5 }}>
+                    {SPECIAL_BET_LABELS[betType]}
+                  </Typography>
+                  <Divider sx={{ borderColor: 'rgba(255,255,255,0.05)', mb: 1.5 }} />
+                  <Grid container spacing={1.5}>
+                    {bets.map((pred, idx) => (
+                      <Grid size={{ xs: 12, sm: 6 }} key={idx}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: 'rgba(0,0,0,0.2)', p: 1, borderRadius: '8px' }}>
+                          <Avatar src={pred.profiles.avatar_url || ''} sx={{ width: 24, height: 24, fontSize: 12 }} slotProps={{ img: { referrerPolicy: 'no-referrer' } }}>
+                            {pred.profiles.username.charAt(0)}
+                          </Avatar>
+                          <Typography sx={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {pred.profiles.username}
+                          </Typography>
+                          <Typography sx={{ color: '#C9940A', fontSize: 13, fontWeight: 700 }}>
+                            {pred.value}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )
+            })}
+            {specialPredictions.length === 0 && (
+              <Typography sx={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', py: 4 }}>
+                Nenhum palpite feito ainda.
+              </Typography>
+            )}
+          </Stack>
         ) : (
           <Stack spacing={4}>
             {matches.map((match) => {
@@ -206,7 +270,7 @@ export default function PredictionsModal({ open, onClose, poolId, poolType = 'wi
                               border: isCorrect ? '1px solid rgba(76, 175, 80, 0.3)' : '1px solid transparent',
                               transition: 'all 0.3s ease'
                             }}>
-                              <Avatar src={pred.profiles.avatar_url || ''} sx={{ width: 24, height: 24, fontSize: 12 }}>
+                              <Avatar src={pred.profiles.avatar_url || ''} sx={{ width: 24, height: 24, fontSize: 12 }} slotProps={{ img: { referrerPolicy: 'no-referrer' } }}>
                                 {pred.profiles.username.charAt(0)}
                               </Avatar>
                               <Typography sx={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

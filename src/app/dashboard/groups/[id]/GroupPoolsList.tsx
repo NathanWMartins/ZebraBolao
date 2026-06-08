@@ -5,6 +5,7 @@ import { Tabs, Tab, Box, Skeleton, Typography, Stack, Button, Chip } from '@mui/
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import DeletePoolButton from './DeletePoolButton'
+import RankingTab from './RankingTab'
 
 interface Pool {
   id: string
@@ -12,14 +13,17 @@ interface Pool {
   status: string
   created_at: string
   group_id: string
+  type: string
 }
 
 interface GroupPoolsListProps {
   groupId: string
   isOwner: boolean
   pools: Pool[]
+  allPools: Pool[]
   predictedPoolIds: string[]
-  activeTab: 'active' | 'history'
+  activeTab: 'active' | 'history' | 'ranking'
+  currentUserId: string
 }
 
 function PoolCardSkeleton() {
@@ -54,20 +58,24 @@ export default function GroupPoolsList({
   groupId,
   isOwner,
   pools,
+  allPools,
   predictedPoolIds,
   activeTab,
+  currentUserId,
 }: GroupPoolsListProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const urlTab = searchParams.get('tab') === 'history' ? 1 : 0
-  const [optimisticTab, setOptimisticTab] = React.useState(urlTab)
+  const urlTab = searchParams.get('tab')
+  const tabIndex = urlTab === 'history' ? 1 : urlTab === 'ranking' ? 2 : 0
+  const [optimisticTab, setOptimisticTab] = React.useState(tabIndex)
   const [isPending, startTransition] = useTransition()
 
   const predictedSet = new Set(predictedPoolIds)
+  const finishedPools = allPools.filter(p => p.status === 'finished')
 
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setOptimisticTab(newValue) // muda o estilo da aba imediatamente
-    const tab = newValue === 1 ? 'history' : 'active'
+    setOptimisticTab(newValue)
+    const tab = newValue === 1 ? 'history' : newValue === 2 ? 'ranking' : 'active'
     startTransition(() => {
       router.push(`?tab=${tab}`, { scroll: false })
     })
@@ -75,7 +83,6 @@ export default function GroupPoolsList({
 
   return (
     <>
-      {/* Abas */}
       <Box sx={{ borderBottom: 1, borderColor: 'rgba(255,255,255,0.05)', mb: 3 }}>
         <Tabs
           value={optimisticTab}
@@ -97,11 +104,17 @@ export default function GroupPoolsList({
         >
           <Tab label="Bolões Ativos" />
           <Tab label="Histórico" />
+          <Tab label="Ranking" />
         </Tabs>
       </Box>
 
-      {/* Conteúdo: skeleton enquanto carrega, lista quando pronto */}
-      {isPending ? (
+      {optimisticTab === 2 ? (
+        <RankingTab
+          groupId={groupId}
+          finishedPools={finishedPools}
+          currentUserId={currentUserId}
+        />
+      ) : isPending ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <PoolCardSkeleton />
           <PoolCardSkeleton />
@@ -151,20 +164,35 @@ export default function GroupPoolsList({
                     borderLeftColor: status.color,
                   }
                 }}>
-                  {/* Linha 1: Nome */}
-                  <Typography sx={{
-                    color: '#fff',
-                    fontSize: 16,
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    mb: 1.5,
-                  }}>
-                    {pool.name}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <Typography sx={{
+                      color: '#fff',
+                      fontSize: 16,
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}>
+                      {pool.name}
+                    </Typography>
+                    {pool.type === 'special' && (
+                      <Chip
+                        label="Especial"
+                        size="small"
+                        sx={{
+                          height: '20px',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          color: '#C9940A',
+                          bgcolor: 'rgba(201,148,10,0.1)',
+                          border: '1px solid rgba(201,148,10,0.3)',
+                          '& .MuiChip-label': { px: 1 },
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                  </Box>
 
-                  {/* Linha 2: Data + Status + Botões */}
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                       <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>

@@ -6,17 +6,17 @@ import { Box, Typography, Avatar, Divider, Button, Stack } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AddIcon from '@mui/icons-material/Add'
 import ShareModalClient from './ShareModalClient'
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import EditGroupModal from './EditGroupModal'
 import GroupPoolsList from './GroupPoolsList'
 
 export default async function GroupPage(props: {
-  params: Promise<{ id: string }>,
+  params: Promise<{ id: string }>
   searchParams: Promise<{ tab?: string }>
 }) {
   const { id } = await props.params
   const { tab } = await props.searchParams
-  const activeTab = tab === 'history' ? 'history' : 'active'
+  const activeTab = tab === 'ranking' ? 'ranking' : tab === 'history' ? 'history' : 'active'
 
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -25,7 +25,6 @@ export default async function GroupPage(props: {
     redirect('/')
   }
 
-  // Verificar acesso: ou é membro ou é dono
   const { data: memberCheck } = await supabase
     .from('group_members')
     .select('group_id')
@@ -51,11 +50,9 @@ export default async function GroupPage(props: {
   const isOwner = group.owner_id === user.id
 
   if (!memberCheck && !isOwner) {
-    // Não é dono e nem membro, manda tentar entrar
     redirect(`/dashboard/groups/join?code=${group.invite_code}`)
   }
 
-  // Buscar os membros do grupo (juntando com a tabela profiles)
   const { data: membersData } = await supabase
     .from('group_members')
     .select(`
@@ -73,54 +70,50 @@ export default async function GroupPage(props: {
     joined_at: m.joined_at,
     id: m.profiles?.id,
     username: m.profiles?.username || 'Usuário Desconhecido',
-    avatar_url: m.profiles?.avatar_url
+    avatar_url: m.profiles?.avatar_url,
   })) || []
 
-  // Buscar as pools (bolões) deste grupo
   const { data: pools } = await supabase
     .from('pools')
     .select('*')
     .eq('group_id', id)
     .order('created_at', { ascending: false })
 
-  // Filtrar pools baseado na aba ativa
-  const filteredPools = pools?.filter(pool => {
-    if (activeTab === 'history') return pool.status === 'finished'
-    // Se não tiver status (bolões antigos), assume scheduled/ativo
-    return pool.status !== 'finished'
-  }) || []
+  const allPools = pools || []
 
-  // Buscar se o usuário já palpitou nos bolões deste grupo
+  const filteredPools = allPools.filter((pool: any) => {
+    if (activeTab === 'history') return pool.status === 'finished'
+    return pool.status !== 'finished'
+  })
+
   const { data: userPredictions } = await supabase
     .from('predictions')
     .select('pool_id')
     .eq('user_id', user.id)
 
-  const predictedPoolIds = new Set(userPredictions?.map(p => p.pool_id) || [])
+  const { data: userSpecialPredictions } = await supabase
+    .from('special_predictions')
+    .select('pool_id')
+    .eq('user_id', user.id)
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'live': return { label: 'Ao Vivo', color: '#ff4444', bgcolor: 'rgba(255, 68, 68, 0.1)' }
-      case 'finished': return { label: 'Finalizado', color: '#00C851', bgcolor: 'rgba(0, 200, 81, 0.1)' }
-      default: return { label: 'Agendado', color: 'rgba(255,255,255,0.5)', bgcolor: 'rgba(255,255,255,0.05)' }
-    }
-  }
+  const predictedPoolIds = new Set([
+    ...(userPredictions?.map((p: any) => p.pool_id) || []),
+    ...(userSpecialPredictions?.map((p: any) => p.pool_id) || []),
+  ])
 
   return (
     <Box sx={{ maxWidth: 800, mx: 'auto', mt: { xs: 2, md: 4 }, px: { xs: 3, md: 0 }, pb: 8 }}>
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Link href="/dashboard" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.6)' }}>
           <ArrowBackIcon sx={{ fontSize: 18 }} />
-          <Typography sx={{ fontSize: 14, '&:hover': { color: '#fff' } }}>Voltar à Home</Typography>
+          <Typography sx={{ fontSize: 14 }}>Voltar à Home</Typography>
         </Link>
 
         {isOwner && (
-          <>
-            <Stack direction="row" spacing={2}>
-              <ShareModalClient inviteCode={group.invite_code} groupName={group.name} />
-              <EditGroupModal groupId={id} />
-            </Stack>
-          </>
+          <Stack direction="row" spacing={2}>
+            <ShareModalClient inviteCode={group.invite_code} groupName={group.name} />
+            <EditGroupModal groupId={id} />
+          </Stack>
         )}
       </Box>
 
@@ -136,13 +129,12 @@ export default async function GroupPage(props: {
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 4 }}>
-
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Typography sx={{ color: '#fff', fontSize: 20, fontWeight: 600 }}>
               Bolões
             </Typography>
-            {isOwner && (
+            {isOwner && activeTab !== 'ranking' && (
               <Link href={`/dashboard/groups/${id}/create-pool`} passHref>
                 <Button
                   variant="contained"
@@ -153,7 +145,7 @@ export default async function GroupPage(props: {
                     color: '#000',
                     fontWeight: 600,
                     textTransform: 'none',
-                    '&:hover': { bgcolor: '#E6AC10' }
+                    '&:hover': { bgcolor: '#E6AC10' },
                   }}
                 >
                   Novo Bolão
@@ -166,8 +158,10 @@ export default async function GroupPage(props: {
             groupId={id}
             isOwner={isOwner}
             pools={filteredPools}
+            allPools={allPools}
             predictedPoolIds={[...predictedPoolIds]}
-            activeTab={activeTab}
+            activeTab={activeTab as 'active' | 'history' | 'ranking'}
+            currentUserId={user.id}
           />
         </Box>
 
@@ -183,15 +177,16 @@ export default async function GroupPage(props: {
             bgcolor: 'rgba(12, 12, 12)',
             p: 2,
             borderRadius: '12px',
-            border: '0.5px solid rgba(255,255,255,0.03)'
+            border: '0.5px solid rgba(255,255,255,0.03)',
           }}>
-            {membersList.map((member, index) => (
+            {membersList.map((member: any, index: number) => (
               <React.Fragment key={index}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   <Avatar
                     src={member.avatar_url || ''}
                     alt={member.username}
                     sx={{ width: 40, height: 40, bgcolor: 'rgba(201,148,10)', color: '#C9940A' }}
+                    slotProps={{ img: { referrerPolicy: 'no-referrer' } }}
                   >
                     {member.username.charAt(0).toUpperCase()}
                   </Avatar>
@@ -200,7 +195,9 @@ export default async function GroupPage(props: {
                       <Typography sx={{ color: '#fff', fontSize: 15 }}>
                         {member.username}
                       </Typography>
-                      {member.id === group.owner_id && <AdminPanelSettingsIcon sx={{ fontSize: 18, color: '#C9940A' }} />}
+                      {member.id === group.owner_id && (
+                        <AdminPanelSettingsIcon sx={{ fontSize: 18, color: '#C9940A' }} />
+                      )}
                     </Stack>
                     <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
                       Entrou em {new Date(member.joined_at).toLocaleDateString('pt-BR')}
@@ -214,7 +211,6 @@ export default async function GroupPage(props: {
             ))}
           </Box>
         </Box>
-
       </Box>
     </Box>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Box,
   Typography,
@@ -11,19 +11,23 @@ import {
   CircularProgress,
   Avatar,
   Paper,
-  Grid
+  Grid,
+  TextField,
+  Autocomplete
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CheckIcon from '@mui/icons-material/Check'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import PeopleIcon from '@mui/icons-material/People'
 import Link from 'next/link'
-import { savePredictions } from '../../actions'
+import { savePredictions, saveSpecialPredictions } from '../../actions'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import PredictionsModal from './PredictionsModal'
 import { getFlagUrl } from '@/lib/teamFlags'
 import { translateTeam } from '@/lib/teamTranslations'
+import TeamFlag from '@/app/components/TeamFlag'
+import { PLAYERS } from '@/lib/players'
 
 interface Match {
   id: string
@@ -44,23 +48,62 @@ interface Prediction {
   prediction: string | null
 }
 
+
 interface PredictClientProps {
   groupId: string
   poolId: string
   poolName: string
   poolType: string
   poolStatus: string
+  specialBets: string[]
   matches: Match[]
   initialPredictions: any[]
+  initialSpecialPredictions: any[]
+  allTeams: string[]
 }
 
-export default function PredictClient({ groupId, poolId, poolName, poolType, poolStatus, matches, initialPredictions }: PredictClientProps) {
+const SPECIAL_BET_LABELS: Record<string, string> = {
+  champion: 'Seleção Campeã',
+  runner_up: 'Vice-Campeão',
+  top_scorer: 'Artilheiro',
+  most_cards: 'Mais Cartões',
+}
+
+const TEAM_BETS = ['champion', 'runner_up']
+const PLAYER_BETS = ['top_scorer', 'most_cards']
+
+
+export default function PredictClient({ groupId, poolId, poolName, poolType, poolStatus, specialBets, matches, initialPredictions, initialSpecialPredictions, allTeams }: PredictClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [showGroupPredictions, setShowGroupPredictions] = useState(false)
   const [localMatches, setLocalMatches] = useState<Match[]>(matches)
+
+  const alreadySavedSpecial = initialSpecialPredictions.length > 0
+  const [specialValues, setSpecialValues] = useState<Record<string, string>>(() => {
+    const map: Record<string, string> = {}
+    initialSpecialPredictions.forEach((p: any) => { map[p.bet_type] = p.value })
+    return map
+  })
+  const [specialLoading, setSpecialLoading] = useState(false)
+  const [specialError, setSpecialError] = useState<string | null>(null)
+  const [specialSuccess, setSpecialSuccess] = useState(false)
+  const [playerTeamFilter, setPlayerTeamFilter] = useState<Record<string, string>>({})
+  const [playerInputValue, setPlayerInputValue] = useState<Record<string, string>>(() => {
+    // Inicializa com os nomes dos jogadores já salvos
+    const map: Record<string, string> = {}
+    initialSpecialPredictions.forEach((p: any) => {
+      if (PLAYER_BETS.includes(p.bet_type)) {
+        map[p.bet_type] = p.value
+      }
+    })
+    return map
+  })
+  const [playerSearchOpen, setPlayerSearchOpen] = useState<Record<string, boolean>>({})
+
+  const FEATURED_TEAMS = ['Argentina', 'Brazil', 'England', 'France', 'Germany', 'Portugal', 'Spain']
 
   const supabase = createClient()
 
@@ -175,6 +218,31 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
       setError('Erro ao salvar seus palpites. Tente novamente.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSaveSpecial = async () => {
+    const filled = specialBets.filter(key => specialValues[key]?.trim())
+    if (filled.length === 0) {
+      setSpecialError('Preencha pelo menos uma aposta especial.')
+      return
+    }
+    setSpecialLoading(true)
+    setSpecialError(null)
+    try {
+      const result = await saveSpecialPredictions(
+        poolId,
+        filled.map(key => ({ betType: key, value: specialValues[key].trim() }))
+      )
+      if (result.error) {
+        setSpecialError(result.error)
+      } else {
+        setSpecialSuccess(true)
+      }
+    } catch {
+      setSpecialError('Erro ao salvar as apostas especiais.')
+    } finally {
+      setSpecialLoading(false)
     }
   }
 
@@ -516,7 +584,30 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
         width: 'auto',
         zIndex: 100
       }}>
-        {alreadyPredicted ? (
+        {matches.length === 0 ? (
+          // Bolão só especial: botão de voltar
+          <Link href={`/dashboard/groups/${groupId}`} passHref style={{ textDecoration: 'none' }}>
+            <Button
+              variant="outlined"
+              size="large"
+              sx={{
+                bgcolor: 'rgba(0,0,0,0.8)',
+                color: 'rgba(255,255,255,0.7)',
+                borderColor: 'rgba(255,255,255,0.2)',
+                fontWeight: 700,
+                px: 6,
+                py: 2,
+                borderRadius: '20px',
+                fontSize: 14,
+                textTransform: 'none',
+                backdropFilter: 'blur(10px)',
+                '&:hover': { borderColor: '#fff', color: '#fff', bgcolor: 'rgba(255,255,255,0.05)' }
+              }}
+            >
+              Voltar
+            </Button>
+          </Link>
+        ) : alreadyPredicted ? (
           <Link href={`/dashboard/groups/${groupId}`} passHref style={{ textDecoration: 'none' }}>
             <Button
               variant="outlined"
@@ -548,7 +639,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
             size="large"
             startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CheckIcon />}
             onClick={handleSave}
-            disabled={loading || success || matches.length === 0}
+            disabled={loading || success}
             sx={{
               bgcolor: '#C9940A',
               color: '#000',
@@ -571,6 +662,253 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
           </Button>
         )}
       </Box>
+
+      {/* Apostas Especiais */}
+      {specialBets.length > 0 && (
+        <Box sx={{ mt: 6, mb: 12 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+            <Box sx={{ flex: 1, height: '1px', bgcolor: 'rgba(255,255,255,0.06)' }} />
+            <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', flexShrink: 0 }}>
+              Apostas Especiais
+            </Typography>
+            <Box sx={{ flex: 1, height: '1px', bgcolor: 'rgba(255,255,255,0.06)' }} />
+          </Box>
+
+          <Paper sx={{ bgcolor: 'rgba(201,148,10,0.05)', border: '1px solid rgba(201,148,10,0.15)', borderRadius: '12px', p: 2, mb: 3 }}>
+            <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
+              Prazo: início das oitavas de final • {alreadySavedSpecial ? 'Palpites confirmados — não podem ser alterados.' : 'Você pode salvar uma vez.'}
+            </Typography>
+          </Paper>
+
+          {specialError && (
+            <Paper sx={{ bgcolor: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: '12px', p: 2, mb: 2 }}>
+              <Typography sx={{ color: '#ff4444', fontSize: 13 }}>{specialError}</Typography>
+            </Paper>
+          )}
+
+          {specialSuccess && (
+            <Paper sx={{ bgcolor: 'rgba(76,175,80,0.1)', border: '1px solid rgba(76,175,80,0.3)', borderRadius: '12px', p: 2, mb: 2 }}>
+              <Typography sx={{ color: '#fff', fontSize: 13 }}>Apostas especiais salvas!</Typography>
+            </Paper>
+          )}
+
+          <Stack spacing={2}>
+            {specialBets.map(key => {
+              const isTeamBet = TEAM_BETS.includes(key)
+              const isPlayerBet = PLAYER_BETS.includes(key)
+              const isDisabled = alreadySavedSpecial || specialSuccess
+
+              const autocompleteInputSx = {
+                '& input': { color: '#fff', fontSize: 15, fontWeight: 600, WebkitTextFillColor: '#fff' },
+                '& input.Mui-disabled': { WebkitTextFillColor: '#fff', color: '#fff' },
+                '& .MuiInput-underline:before': { borderBottomColor: 'rgba(201,148,10,0.3)' },
+                '& .MuiInput-underline:after': { borderBottomColor: '#C9940A' },
+                '& .MuiInput-underline:hover:not(.Mui-disabled):before': { borderBottomColor: '#C9940A' },
+                '& .MuiAutocomplete-endAdornment svg': { color: 'rgba(255,255,255,0.3)' },
+              }
+
+              const dropdownSlotProps = {
+                paper: {
+                  sx: {
+                    bgcolor: '#111',
+                    border: '1px solid rgba(201,148,10,0.2)',
+                    borderRadius: '12px',
+                    color: '#fff',
+                    mt: 0.5,
+                    '& .MuiAutocomplete-listbox': { p: 0.5 },
+                    '& .MuiAutocomplete-option': {
+                      borderRadius: '8px',
+                      '&:hover': { bgcolor: 'rgba(201,148,10,0.12)' },
+                      '&[aria-selected="true"]': { bgcolor: 'rgba(201,148,10,0.18) !important' },
+                    },
+                  }
+                }
+              }
+
+              return (
+                <Card key={key} sx={{ bgcolor: 'rgba(12,12,12)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', p: 2.5, boxShadow: 'none' }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', mb: 1.5 }}>
+                    {SPECIAL_BET_LABELS[key] ?? key}
+                  </Typography>
+
+                  {isTeamBet && (
+                    <Autocomplete
+                      disabled={isDisabled}
+                      options={allTeams}
+                      value={specialValues[key] ?? null}
+                      onChange={(_e, val) => setSpecialValues(prev => ({ ...prev, [key]: val ?? '' }))}
+                      slotProps={dropdownSlotProps}
+                      renderOption={(props, option) => {
+                        const { key, ...optionProps } = props as any
+                        return (
+                          <Box key={key} component="li" {...optionProps} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1, px: 1.5 }}>
+                            <TeamFlag teamName={option} size={20} />
+                            <Typography sx={{ color: '#fff', fontSize: 14 }}>{translateTeam(option)}</Typography>
+                          </Box>
+                        )
+                      }}
+                      renderInput={(params) => (
+                        <TextField {...params} placeholder="Selecione a seleção..." variant="standard" sx={autocompleteInputSx} />
+                      )}
+                    />
+                  )}
+
+                  {isPlayerBet && (() => {
+                    const teamFilter = playerTeamFilter[key] ?? ''
+                    const inputVal = playerInputValue[key] ?? ''
+                    const isOpen = playerSearchOpen[key] ?? false
+
+                    const filteredPlayers = PLAYERS.filter(p => {
+                      const matchesTeam = teamFilter ? p.team === teamFilter : true
+                      const matchesText = inputVal.length >= 3 ? p.name.toLowerCase().includes(inputVal.toLowerCase()) : true
+                      if (teamFilter && inputVal.length >= 3) return matchesTeam && matchesText
+                      if (teamFilter) return matchesTeam
+                      if (inputVal.length >= 3) return matchesText
+                      return false
+                    })
+                    const showOptions = teamFilter !== '' || inputVal.length >= 3
+
+                    return (
+                      <Box>
+                        {/* Input que abre o painel */}
+                        <Autocomplete
+                          disabled={isDisabled}
+                          options={showOptions ? filteredPlayers : []}
+                          filterOptions={(x) => x}
+                          getOptionLabel={(o) => o.name}
+                          value={PLAYERS.find(p => p.name === specialValues[key]) ?? null}
+                          inputValue={inputVal}
+                          onInputChange={(_e, val, reason) => {
+                            if (reason === 'input') {
+                              setPlayerInputValue(prev => ({ ...prev, [key]: val }))
+                            }
+                          }}
+                          onChange={(_e, val) => {
+                            setSpecialValues(prev => ({ ...prev, [key]: val?.name ?? '' }))
+                            setPlayerInputValue(prev => ({ ...prev, [key]: val?.name ?? '' }))
+                            setPlayerSearchOpen(prev => ({ ...prev, [key]: false }))
+                          }}
+                          onOpen={() => setPlayerSearchOpen(prev => ({ ...prev, [key]: true }))}
+                          onClose={(_e, reason) => {
+                            if (reason !== 'blur') {
+                              setPlayerSearchOpen(prev => ({ ...prev, [key]: false }))
+                            }
+                          }}
+                          noOptionsText={
+                            <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
+                              {!showOptions ? 'Selecione uma seleção acima ou digite 3 letras' : 'Nenhum jogador encontrado'}
+                            </Typography>
+                          }
+                          slotProps={{ listbox: { sx: { p: 0.5, '& .MuiAutocomplete-option': { borderRadius: '8px', '&:hover': { bgcolor: 'rgba(201,148,10,0.12)' }, '&[aria-selected="true"]': { bgcolor: 'rgba(201,148,10,0.18) !important' } } } } }}
+                          renderOption={(props, option) => {
+                            const { key: optKey, ...optionProps } = props as any
+                            const posColor: Record<string, string> = { GOL: '#5b9bd5', DEF: '#70b96e', MEI: '#e0a830', ATA: '#e05c5c' }
+                            const posLabel: Record<string, string> = { GOL: 'GOL', DEF: 'DEF', MEI: 'MEI', ATA: 'ATA' }
+                            return (
+                              <Box key={optKey} component="li" {...optionProps} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1, px: 1.5 }}>
+                                <TeamFlag teamName={option.team} size={20} />
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>{option.name}</Typography>
+                                  <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{translateTeam(option.team)}</Typography>
+                                </Box>
+                                {option.position && (
+                                  <Box sx={{
+                                    px: 0.8, py: 0.2, borderRadius: '4px',
+                                    bgcolor: `${posColor[option.position]}22`,
+                                    border: `1px solid ${posColor[option.position]}55`,
+                                  }}>
+                                    <Typography sx={{ color: posColor[option.position], fontSize: 10, fontWeight: 700 }}>
+                                      {posLabel[option.position] ?? option.position}
+                                    </Typography>
+                                  </Box>
+                                )}
+                              </Box>
+                            )
+                          }}
+                          slots={{
+                            paper: ({ children, ...paperProps }: any) => (
+                              <Box {...paperProps} sx={{
+                                bgcolor: '#111',
+                                border: '1px solid rgba(201,148,10,0.2)',
+                                borderRadius: '12px',
+                                color: '#fff',
+                                mt: 0.5,
+                                overflow: 'hidden',
+                              }}>
+                                <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', p: 1.5, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                  {FEATURED_TEAMS.map(team => {
+                                    const selected = teamFilter === team
+                                    return (
+                                      <Box
+                                        key={team}
+                                        onMouseDown={(e: React.MouseEvent) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          const next = teamFilter === team ? '' : team
+                                          setPlayerTeamFilter(prev => ({ ...prev, [key]: next }))
+                                          if (next) setPlayerInputValue(prev => ({ ...prev, [key]: '' }))
+                                        }}
+                                        sx={{
+                                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                          width: 32, height: 32, borderRadius: '8px', cursor: 'pointer',
+                                          border: '1.5px solid',
+                                          borderColor: selected ? '#C9940A' : 'rgba(255,255,255,0.1)',
+                                          bgcolor: selected ? 'rgba(201,148,10,0.15)' : 'rgba(255,255,255,0.03)',
+                                          transition: 'all 0.15s',
+                                          '&:hover': { borderColor: 'rgba(201,148,10,0.5)' },
+                                        }}
+                                      >
+                                        <TeamFlag teamName={team} size={20} />
+                                      </Box>
+                                    )
+                                  })}
+                                </Box>
+                                {children}
+                              </Box>
+                            )
+                          }}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              placeholder="Buscar jogador..."
+                              variant="standard"
+                              sx={autocompleteInputSx}
+                            />
+                          )}
+                        />
+                      </Box>
+                    )
+                  })()}
+                </Card>
+              )
+            })}
+          </Stack>
+
+          {!alreadySavedSpecial && !specialSuccess && (
+            <Button
+              fullWidth
+              variant="contained"
+              disabled={specialLoading}
+              onClick={handleSaveSpecial}
+              sx={{
+                mt: 3,
+                bgcolor: 'rgba(201,148,10,0.9)',
+                color: '#000',
+                fontWeight: 800,
+                fontSize: 15,
+                py: 1.5,
+                borderRadius: '14px',
+                textTransform: 'none',
+                boxShadow: '0 8px 30px rgba(201,148,10,0.2)',
+                '&:hover': { bgcolor: '#E6AC10' },
+                '&.Mui-disabled': { bgcolor: 'rgba(201,148,10,0.3)' }
+              }}
+            >
+              {specialLoading ? <CircularProgress size={20} color="inherit" /> : 'Salvar Apostas Especiais'}
+            </Button>
+          )}
+        </Box>
+      )}
 
       <PredictionsModal
         open={showGroupPredictions}

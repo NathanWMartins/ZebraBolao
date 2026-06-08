@@ -63,6 +63,22 @@ export default async function PoolPredictPage(props: { params: Promise<{ id: str
     .eq('pool_id', poolId)
     .eq('user_id', user.id)
 
+  // Buscar palpites especiais do usuário
+  const { data: specialPredictions } = await supabase
+    .from('special_predictions')
+    .select('*')
+    .eq('pool_id', poolId)
+    .eq('user_id', user.id)
+
+  // Buscar todas as seleções do torneio para autocomplete
+  const { data: allMatches } = await supabase
+    .from('matches')
+    .select('home_team, away_team')
+
+  const allTeams = Array.from(new Set(
+    (allMatches || []).flatMap((m: any) => [m.home_team, m.away_team])
+  )).sort()
+
   return (
     <PredictClient
       groupId={id}
@@ -70,8 +86,11 @@ export default async function PoolPredictPage(props: { params: Promise<{ id: str
       poolName={pool.name}
       poolType={pool.type || 'winner'}
       poolStatus={pool.status || 'scheduled'}
+      specialBets={pool.special_bets || []}
       matches={matches || []}
       initialPredictions={predictions || []}
+      initialSpecialPredictions={specialPredictions || []}
+      allTeams={allTeams}
     />
   )
 }

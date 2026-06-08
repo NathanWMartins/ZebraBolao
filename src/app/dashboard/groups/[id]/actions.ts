@@ -165,6 +165,84 @@ export async function savePredictions(poolId: string, predictions: { matchId: st
   return { success: true }
 }
 
+export async function saveSpecialPredictions(poolId: string, predictions: { betType: string, value: string }[]) {
+  const supabase = await createServerSupabaseClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Usuário não autenticado.' }
+
+  const { data: pool, error: poolError } = await supabase
+    .from('pools')
+    .select('group_id')
+    .eq('id', poolId)
+    .single()
+
+  if (poolError || !pool) return { error: 'Bolão não encontrado.' }
+
+  const { data: memberCheck } = await supabase
+    .from('group_members')
+    .select('group_id')
+    .eq('group_id', pool.group_id)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!memberCheck) return { error: 'Você não tem permissão para palpitar neste bolão.' }
+
+  const data = predictions.map(p => ({
+    pool_id: poolId,
+    user_id: user.id,
+    bet_type: p.betType,
+    value: p.value,
+  }))
+
+  const { error } = await supabase
+    .from('special_predictions')
+    .upsert(data, { onConflict: 'pool_id, user_id, bet_type' })
+
+  if (error) {
+    console.error('Save special predictions error:', error)
+    return { error: 'Erro ao salvar as apostas especiais.' }
+  }
+
+  revalidatePath(`/dashboard/groups/${pool.group_id}/pools/${poolId}`)
+  return { success: true }
+}
+
+export async function getSpecialPredictions(poolId: string) {
+  const supabase = await createServerSupabaseClient()
+  const supabaseAdmin = createAdminClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Usuário não autenticado.')
+
+  const { data: bets, error } = await supabaseAdmin
+    .from('special_predictions')
+    .select('*')
+    .eq('pool_id', poolId)
+
+  if (error) {
+    console.error('getSpecialPredictions error:', error)
+    throw new Error('Erro ao carregar apostas especiais.')
+  }
+
+  if (!bets || bets.length === 0) return []
+
+  // Busca profiles separadamente
+  const userIds = [...new Set(bets.map((b: any) => b.user_id))]
+  const { data: profiles } = await supabaseAdmin
+    .from('profiles')
+    .select('id, username, avatar_url')
+    .in('id', userIds)
+
+  const profileMap: Record<string, any> = {}
+  profiles?.forEach((p: any) => { profileMap[p.id] = p })
+
+  return bets.map((b: any) => ({
+    ...b,
+    profiles: profileMap[b.user_id] ?? { username: 'Usuário', avatar_url: null }
+  }))
+}
+
 export async function getPoolPredictions(poolId: string) {
   const supabase = await createServerSupabaseClient()
   const supabaseAdmin = createAdminClient()
@@ -194,6 +272,119 @@ export async function getPoolPredictions(poolId: string) {
   return data
 }
 
+export async function getPoolRanking(poolId: string) {
+  const supabaseAdmin = createAdminClient()
+
+  // Busca o pool para saber group_id e match_ids
+  const { data: pool } = await supabaseAdmin
+    .from('pools')
+    .select('id, type, group_id, match_ids')
+    .eq('id', poolId)
+    .single()
+
+  if (!pool) return []
+
+  // Busca os jogos do bolão com resultados
+  const { data: matches } = await supabaseAdmin
+    .from('matches')
+    .select('id, home_score, away_score')
+    .in('id', pool.match_ids || [])
+
+  // Busca todos os palpites do bolão
+  const { data: predictions, error } = await supabaseAdmin
+    .from('predictions')
+    .select('user_id, match_id, prediction')
+    .eq('pool_id', poolId)
+
+  if (error || !predictions || predictions.length === 0) return []
+
+  const matchById = new Map((matches || []).map((m: any) => [m.id, m]))
+  const userPoints: Record<string, number> = {}
+
+  for (const pred of predictions) {
+    const match = matchById.get(pred.match_id)
+    if (!match || match.home_score === null || match.away_score === null) continue
+
+    const h = match.home_score as number
+    const a = match.away_score as number
+    const actual = h > a ? 'Time A' : a > h ? 'Time B' : 'Empate'
+
+    if (!userPoints[pred.user_id]) userPoints[pred.user_id] = 0
+
+    if (pool.type === 'score') {
+      if (pred.prediction === `${h}-${a}`) {
+        userPoints[pred.user_id] += 3
+      } else {
+        const parts = pred.prediction?.split('-')
+        if (parts?.length === 2) {
+          const ph = parseInt(parts[0]), pa = parseInt(parts[1])
+          const pr = ph > pa ? 'Time A' : pa > ph ? 'Time B' : 'Empate'
+          if (pr === actual) userPoints[pred.user_id] += 1
+        }
+      }
+    } else {
+      if (pred.prediction === actual) userPoints[pred.user_id] += 1
+    }
+  }
+
+  const sorted = Object.entries(userPoints).sort(([, a], [, b]) => b - a)
+  if (sorted.length === 0) return []
+
+  const userIds = sorted.map(([uid]) => uid)
+  const { data: profiles } = await supabaseAdmin
+    .from('profiles')
+    .select('id, username, avatar_url')
+    .in('id', userIds)
+
+  const profileMap: Record<string, any> = {}
+  profiles?.forEach((p: any) => { profileMap[p.id] = p })
+
+  return sorted.map(([userId, points], idx) => ({
+    position: idx + 1,
+    user_id: userId,
+    points,
+    username: profileMap[userId]?.username ?? 'Usuário',
+    avatar_url: profileMap[userId]?.avatar_url ?? null,
+  }))
+}
+
+export async function getGroupRanking(groupId: string) {
+  const supabaseAdmin = createAdminClient()
+
+  // Busca total_points por usuário da tabela scores (agregado por grupo)
+  const { data: scores, error } = await supabaseAdmin
+    .from('scores')
+    .select('user_id, total_points')
+    .eq('group_id', groupId)
+    .order('total_points', { ascending: false })
+
+  if (error) {
+    console.error('getGroupRanking error:', error)
+    throw new Error('Erro ao carregar ranking geral.')
+  }
+
+  if (!scores || scores.length === 0) return []
+
+  const sorted = (scores as any[]).map((s: any) => [s.user_id, s.total_points] as [string, number])
+
+  const userIds = sorted.map(([uid]) => uid)
+  const { data: profiles } = await supabaseAdmin
+    .from('profiles')
+    .select('id, username, avatar_url')
+    .in('id', userIds)
+
+  const profileMap: Record<string, any> = {}
+  profiles?.forEach((p: any) => { profileMap[p.id] = p })
+
+  return sorted.map(([userId, points], idx) => ({
+    position: idx + 1,
+    user_id: userId,
+    points,
+    username: profileMap[userId]?.username ?? 'Usuário',
+    avatar_url: profileMap[userId]?.avatar_url ?? null,
+  }))
+}
+
 export async function deleteGroup(groupId: string) {
   const supabase = await createServerSupabaseClient()
   const supabaseAdmin = createAdminClient()
@@ -217,7 +408,6 @@ export async function deleteGroup(groupId: string) {
     return { error: 'Apenas o administrador pode excluir o grupo.' }
   }
 
-  // 1. Buscar todos os pools do grupo
   const { data: pools } = await supabaseAdmin
     .from('pools')
     .select('id')
@@ -225,7 +415,6 @@ export async function deleteGroup(groupId: string) {
 
   const poolIds = pools?.map((p: any) => p.id) || []
 
-  // 2. Excluir palpites dos pools
   if (poolIds.length > 0) {
     const { error: predError } = await supabaseAdmin
       .from('predictions')
@@ -237,7 +426,6 @@ export async function deleteGroup(groupId: string) {
       return { error: 'Erro ao excluir palpites do grupo.' }
     }
 
-    // 3. Excluir os pools
     const { error: poolsError } = await supabaseAdmin
       .from('pools')
       .delete()
@@ -249,7 +437,6 @@ export async function deleteGroup(groupId: string) {
     }
   }
 
-  // 4. Excluir membros
   const { error: membersError } = await supabaseAdmin
     .from('group_members')
     .delete()
@@ -260,7 +447,6 @@ export async function deleteGroup(groupId: string) {
     return { error: 'Erro ao excluir membros do grupo.' }
   }
 
-  // 5. Excluir o grupo
   const { error: groupError } = await supabaseAdmin
     .from('groups')
     .delete()
