@@ -10,7 +10,8 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlined'
 import { createClient } from '@/lib/supabase'
 import { signUpWithEmail } from '../actions'
 
-const initialState = { error: null as string | null, success: false }
+type State = { error: string; success?: undefined } | { success: boolean; error?: undefined }
+const initialState: State = { error: '' }
 
 function GoogleIcon() {
   return (
@@ -24,7 +25,7 @@ function GoogleIcon() {
 }
 
 export default function SignUpPage() {
-  const [state, formAction, isPending] = useActionState(signUpWithEmail, initialState)
+  const [state, formAction, isPending] = useActionState<State, FormData>(signUpWithEmail, initialState)
   const [googleLoading, setGoogleLoading] = React.useState(false)
   const supabase = createClient()
 

@@ -7,10 +7,12 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead'
 import { sendPasswordReset } from '../actions'
 
-const initialState = { error: null as string | null, success: false }
+type State = { error: string; success?: undefined } | { success: boolean; error?: undefined }
+
+const initialState: State = { error: '' }
 
 export default function ResetPasswordPage() {
-  const [state, formAction, isPending] = useActionState(sendPasswordReset, initialState)
+  const [state, formAction, isPending] = useActionState<State, FormData>(sendPasswordReset, initialState)
 
   if (state?.success) {
     return (

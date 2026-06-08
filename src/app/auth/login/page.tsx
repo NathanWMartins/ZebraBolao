@@ -9,7 +9,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { createClient } from '@/lib/supabase'
 import { signInWithEmail } from '../actions'
 
-const initialState = { error: null as string | null }
+type State = { error: string; success?: undefined } | { success: boolean; error?: undefined }
+const initialState: State = { error: '' }
 
 function GoogleIcon() {
   return (
@@ -23,7 +24,7 @@ function GoogleIcon() {
 }
 
 export default function LoginPage() {
-  const [state, formAction, isPending] = useActionState(signInWithEmail, initialState)
+  const [state, formAction, isPending] = useActionState<State, FormData>(signInWithEmail, initialState)
   const [googleLoading, setGoogleLoading] = React.useState(false)
   const supabase = createClient()
 
