@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Box, Typography, Button, Modal, Paper, Divider } from '@mui/material'
 import { createClient } from '@/lib/supabase'
 import Image from 'next/image'
+import CountdownClient from './dashboard/countdown-client'
 import GridViewIcon from '@mui/icons-material/GridView'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
@@ -136,7 +137,7 @@ export default function LandingPage() {
             </Button>
           </Box>
 
-          {/* Taça — lado direito (desktop) / abaixo (mobile) */}
+          {/* Countdown — lado direito */}
           <Box sx={{
             display: 'flex',
             alignItems: 'center',
@@ -144,13 +145,7 @@ export default function LandingPage() {
             flexShrink: 0,
             width: { xs: '100%', md: 'auto' },
           }}>
-            <Image
-              src="/World-CupWhiteLogo.png"
-              alt="Taça da Copa do Mundo"
-              width={200}
-              height={240}
-              style={{ objectFit: 'contain' }}
-            />
+            <CountdownClient />
           </Box>
         </Box>
       </Box>
@@ -294,7 +289,7 @@ export default function LandingPage() {
             },
             {
               q: 'Preciso criar uma conta?',
-              a: 'Você entra com sua conta Google — sem senha nova para lembrar. É rápido e seguro.',
+              a: 'Você pode entrar com sua conta Google ou criar uma conta com e-mail e senha. É rápido e seguro.',
             },
             {
               q: 'Posso participar de mais de um grupo?',
@@ -310,7 +305,7 @@ export default function LandingPage() {
             },
             {
               q: 'Meus dados estão seguros?',
-              a: 'Sim. Utilizamos apenas seu e-mail e nome do Google para criar seu perfil. Não compartilhamos seus dados com terceiros, exceto os necessários para exibição de anúncios (Google AdSense). Leia nossa Política de Privacidade para mais detalhes.',
+              a: 'Sim. Utilizamos apenas seu e-mail e nome para criar seu perfil. Não compartilhamos seus dados com terceiros. Leia nossa Política de Privacidade para mais detalhes.',
             },
           ].map((item, i) => (
             <Box
@@ -505,6 +500,7 @@ export default function LandingPage() {
     </Box>
   )
 }
+
 
 function GoogleIcon() {
   return (

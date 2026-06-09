@@ -760,6 +760,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                     const teamFilter = playerTeamFilter[key] ?? ''
                     const inputVal = playerInputValue[key] ?? ''
                     const isOpen = playerSearchOpen[key] ?? false
+                    const savedPlayerName = specialValues[key]
 
                     const filteredPlayers = PLAYERS.filter(p => {
                       const matchesTeam = teamFilter ? p.team === teamFilter : true
