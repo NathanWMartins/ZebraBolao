@@ -2,13 +2,13 @@ import React from 'react'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Box, Typography, Avatar, Divider, Button, Stack } from '@mui/material'
+import { Box, Typography, Button, Stack } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AddIcon from '@mui/icons-material/Add'
 import ShareModalClient from './ShareModalClient'
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import EditGroupModal from './EditGroupModal'
 import GroupPoolsList from './GroupPoolsList'
+import MembersListClient from './MembersListClient'
 
 export default async function GroupPage(props: {
   params: Promise<{ id: string }>
@@ -165,52 +165,13 @@ export default async function GroupPage(props: {
           />
         </Box>
 
-        <Box>
-          <Typography sx={{ color: '#fff', fontSize: 20, fontWeight: 600, mb: 3 }}>
-            Membros ({membersList.length})
-          </Typography>
-
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            bgcolor: 'rgba(12, 12, 12)',
-            p: 2,
-            borderRadius: '12px',
-            border: '0.5px solid rgba(255,255,255,0.03)',
-          }}>
-            {membersList.map((member: any, index: number) => (
-              <React.Fragment key={index}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar
-                    src={member.avatar_url || ''}
-                    alt={member.username}
-                    sx={{ width: 40, height: 40, bgcolor: 'rgba(201,148,10)', color: '#C9940A' }}
-                    slotProps={{ img: { referrerPolicy: 'no-referrer' } }}
-                  >
-                    {member.username.charAt(0).toUpperCase()}
-                  </Avatar>
-                  <Box>
-                    <Stack direction="row" spacing={1}>
-                      <Typography sx={{ color: '#fff', fontSize: 15 }}>
-                        {member.username}
-                      </Typography>
-                      {member.id === group.owner_id && (
-                        <AdminPanelSettingsIcon sx={{ fontSize: 18, color: '#C9940A' }} />
-                      )}
-                    </Stack>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
-                      Entrou em {new Date(member.joined_at).toLocaleDateString('pt-BR')}
-                    </Typography>
-                  </Box>
-                </Box>
-                {index < membersList.length - 1 && (
-                  <Divider sx={{ borderColor: 'rgba(255,255,255,0.05)' }} />
-                )}
-              </React.Fragment>
-            ))}
-          </Box>
-        </Box>
+        <MembersListClient
+          members={membersList}
+          groupId={id}
+          ownerId={group.owner_id}
+          isOwner={isOwner}
+          currentUserId={user.id}
+        />
       </Box>
     </Box>
   )

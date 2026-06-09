@@ -416,6 +416,38 @@ export async function getGroupRanking(groupId: string) {
   }))
 }
 
+export async function removeMember(groupId: string, memberId: string) {
+  const supabase = await createServerSupabaseClient()
+  const supabaseAdmin = createAdminClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Usuário não autenticado.' }
+
+  const { data: group } = await supabase
+    .from('groups')
+    .select('owner_id')
+    .eq('id', groupId)
+    .single()
+
+  if (!group) return { error: 'Grupo não encontrado.' }
+  if (group.owner_id !== user.id) return { error: 'Apenas o administrador pode remover membros.' }
+  if (memberId === user.id) return { error: 'O administrador não pode se remover do grupo.' }
+
+  const { error } = await supabaseAdmin
+    .from('group_members')
+    .delete()
+    .eq('group_id', groupId)
+    .eq('user_id', memberId)
+
+  if (error) {
+    console.error('removeMember error:', error)
+    return { error: 'Erro ao remover membro.' }
+  }
+
+  revalidatePath(`/dashboard/groups/${groupId}`)
+  return { success: true }
+}
+
 export async function deleteGroup(groupId: string) {
   const supabase = await createServerSupabaseClient()
   const supabaseAdmin = createAdminClient()
