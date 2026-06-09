@@ -13,6 +13,7 @@ interface Props {
 
 export default function DashboardClient({ user }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [supportCopied, setSupportCopied] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -122,6 +123,30 @@ export default function DashboardClient({ user }: Props) {
               Sair
             </button>
 
+            {/* Suporte */}
+            <div style={{ padding: '4px 12px 8px' }}>
+              <p style={{ margin: '0 0 6px', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>Suporte</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 8px' }}>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', flex: 1 }}>nathanwillmartins@gmail.com</span>
+                <button
+                  onClick={() => { navigator.clipboard.writeText('nathanwillmartins@gmail.com'); setSupportCopied(true); setTimeout(() => setSupportCopied(false), 2000) }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: supportCopied ? '#C9940A' : 'rgba(255,255,255,0.35)', flexShrink: 0 }}
+                  title="Copiar email"
+                >
+                  {supportCopied ? (
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                      <path d="M2 6.5l3 3 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                      <rect x="4.5" y="4.5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+                      <path d="M4.5 8.5H3a1 1 0 01-1-1V3a1 1 0 011-1h4.5a1 1 0 011 1v1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
             {/* Excluir conta */}
             <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)', marginTop: 4, paddingTop: 4 }}>
               <button
@@ -184,7 +209,7 @@ export default function DashboardClient({ user }: Props) {
             </div>
           </div>
         </div>
-      , document.body)}
+        , document.body)}
     </>
   )
 }
