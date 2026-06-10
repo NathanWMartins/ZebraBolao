@@ -80,6 +80,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [skippedWarning, setSkippedWarning] = useState<string | null>(null)
   const [showGroupPredictions, setShowGroupPredictions] = useState(false)
   const [localMatches, setLocalMatches] = useState<Match[]>(matches)
 
@@ -149,7 +150,6 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
   })
 
   const handleSelect = (matchId: string, value: string) => {
-    if (alreadyPredicted) return
     setPredictions(prev => prev.map(p =>
       p.matchId === matchId
         ? { ...p, prediction: value }
@@ -159,7 +159,6 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
   }
 
   const handleScoreChange = (matchId: string, team: 'home' | 'away', scoreStr: string) => {
-    if (alreadyPredicted) return
 
     // Only allow numbers
     if (scoreStr !== '' && !/^\d+$/.test(scoreStr)) return
@@ -187,34 +186,38 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
   }
 
   const handleSave = async () => {
-    if (alreadyPredicted) return
+    const now = new Date()
 
-    // Validar se todos os campos estão preenchidos
-    const isComplete = predictions.every(p => {
+    // Filtra só jogos que ainda não começaram e têm palpite preenchido
+    const toSave = predictions.filter(p => {
+      const match = localMatches.find(m => m.id === p.matchId)
+      if (!match) return false
+      if (new Date(match.match_date) <= now) return false
+      if (!p.prediction) return false
       if (poolType === 'score') {
-        if (!p.prediction) return false
         const [home, away] = p.prediction.split('-')
-        return home !== undefined && away !== undefined && home !== '' && away !== ''
+        return home !== '' && away !== '' && home !== undefined && away !== undefined
       }
-      return p.prediction !== null
+      return true
     })
 
-    if (!isComplete) {
-      setError('Por favor, faça suas escolhas para todos os jogos.')
+    if (toSave.length === 0) {
+      setError('Faça pelo menos um palpite em um jogo que ainda não começou.')
       return
     }
 
     setLoading(true)
     setError(null)
     try {
-      const result = await savePredictions(poolId, predictions as any)
+      const result = await savePredictions(poolId, toSave as any)
       if (result.error) {
         setError(result.error)
       } else {
         setSuccess(true)
-        setTimeout(() => {
-          router.push(`/dashboard/groups/${groupId}`)
-        }, 1500)
+        if (result.skippedCount && result.skippedCount > 0) {
+          setSkippedWarning(`${result.skippedCount} jogo${result.skippedCount > 1 ? 's' : ''} não ${result.skippedCount > 1 ? 'foram salvos porque já começaram' : 'foi salvo porque já começou'} enquanto a página estava aberta.`)
+        }
+        setTimeout(() => { setSuccess(false); setSkippedWarning(null) }, 5000)
       }
     } catch (err) {
       setError('Erro ao salvar seus palpites. Tente novamente.')
@@ -270,7 +273,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
               {poolName}
             </Typography>
             <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
-              {alreadyPredicted ? 'Visualizando seus palpites' : (poolType === 'score' ? 'Qual o placar?' : 'Quem vence?')}
+              {poolType === 'score' ? 'Qual o placar?' : 'Quem vence?'}
             </Typography>
           </Box>
 
@@ -322,8 +325,8 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
             <CheckIcon sx={{ color: '#C9940A' }} />
           </Box>
           <Box>
-            <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>Palpites Confirmados!</Typography>
-            <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>Seus palpites não podem ser alterados.</Typography>
+            <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>Você já tem palpites salvos</Typography>
+            <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>Jogos que ainda não começaram podem ser alterados.</Typography>
           </Box>
         </Paper>
       )}
@@ -335,9 +338,16 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
       )}
 
       {success && (
-        <Paper sx={{ bgcolor: 'rgba(76, 175, 80, 0.1)', p: 2, mb: 3, border: '1px solid rgba(76, 175, 80, 0.3)', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <CheckCircleIcon sx={{ color: '#fff' }} />
-          <Typography sx={{ color: '#fff', fontSize: 14 }}>Palpites salvos com sucesso! Redirecionando...</Typography>
+        <Paper sx={{ bgcolor: 'rgba(76, 175, 80, 0.1)', p: 2, mb: 2, border: '1px solid rgba(76, 175, 80, 0.3)', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CheckCircleIcon sx={{ color: '#4caf50' }} />
+          <Typography sx={{ color: '#fff', fontSize: 14 }}>Palpites salvos! Você pode continuar palpitando os demais jogos.</Typography>
+        </Paper>
+      )}
+
+      {skippedWarning && (
+        <Paper sx={{ bgcolor: 'rgba(255,165,0,0.08)', p: 2, mb: 3, border: '1px solid rgba(255,165,0,0.3)', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ fontSize: 16 }}>⚠️</Box>
+          <Typography sx={{ color: '#ffb347', fontSize: 13 }}>{skippedWarning}</Typography>
         </Paper>
       )}
 
@@ -349,7 +359,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
           const currentChoice = prediction?.prediction
 
           const selectedGold = '#C9940A'
-          const isDisabled = isStarted || alreadyPredicted
+          const isDisabled = isStarted
 
           return (
             <Card key={match.id} sx={{
@@ -565,10 +575,10 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                 </Box>
               )}
 
-              {isStarted && !alreadyPredicted && (
-                <Box sx={{ p: 1, bgcolor: 'rgba(255, 68, 68, 0.05)', textAlign: 'center' }}>
-                  <Typography sx={{ color: '#ff4444', fontSize: 9, fontWeight: 800, textTransform: 'uppercase' }}>
-                    Jogo em andamento • Palpites encerrados
+              {isStarted && (
+                <Box sx={{ p: 1, bgcolor: currentChoice ? 'rgba(255,165,0,0.04)' : 'rgba(255,68,68,0.05)', textAlign: 'center' }}>
+                  <Typography sx={{ color: currentChoice ? 'rgba(255,165,0,0.7)' : '#ff4444', fontSize: 9, fontWeight: 800, textTransform: 'uppercase' }}>
+                    {currentChoice ? 'Jogo em andamento • Palpite registrado ✓' : 'Jogo em andamento • Você não palpitou neste jogo'}
                   </Typography>
                 </Box>
               )}
@@ -604,32 +614,6 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                 textTransform: 'none',
                 backdropFilter: 'blur(10px)',
                 '&:hover': { borderColor: '#fff', color: '#fff', bgcolor: 'rgba(255,255,255,0.05)' }
-              }}
-            >
-              Voltar
-            </Button>
-          </Link>
-        ) : alreadyPredicted ? (
-          <Link href={`/dashboard/groups/${groupId}`} passHref style={{ textDecoration: 'none' }}>
-            <Button
-              variant="outlined"
-              size="large"
-              sx={{
-                bgcolor: 'rgba(0,0,0,0.8)',
-                color: 'rgba(255,255,255,0.7)',
-                borderColor: 'rgba(255,255,255,0.2)',
-                fontWeight: 700,
-                px: 6,
-                py: 2,
-                borderRadius: '20px',
-                fontSize: 14,
-                textTransform: 'none',
-                backdropFilter: 'blur(10px)',
-                '&:hover': {
-                  borderColor: '#fff',
-                  color: '#fff',
-                  bgcolor: 'rgba(255,255,255,0.05)'
-                }
               }}
             >
               Voltar

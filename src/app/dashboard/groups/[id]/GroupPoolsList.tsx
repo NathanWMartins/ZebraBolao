@@ -14,6 +14,7 @@ interface Pool {
   created_at: string
   group_id: string
   type: string
+  match_ids?: string[]
 }
 
 interface GroupPoolsListProps {
@@ -22,6 +23,7 @@ interface GroupPoolsListProps {
   pools: Pool[]
   allPools: Pool[]
   predictedPoolIds: string[]
+  predictionCountByPool: Record<string, number>
   activeTab: 'active' | 'history' | 'ranking'
   currentUserId: string
 }
@@ -60,6 +62,7 @@ export default function GroupPoolsList({
   pools,
   allPools,
   predictedPoolIds,
+  predictionCountByPool,
   activeTab,
   currentUserId,
 }: GroupPoolsListProps) {
@@ -146,6 +149,9 @@ export default function GroupPoolsList({
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {pools.map(pool => {
             const hasPredicted = predictedSet.has(pool.id)
+            const totalMatches = pool.match_ids?.length ?? 0
+            const predictedCount = predictionCountByPool[pool.id] ?? 0
+            const isIncomplete = hasPredicted && totalMatches > 0 && predictedCount < totalMatches && pool.status !== 'finished'
             const status = getStatusLabel(pool.status)
 
             return (
@@ -218,8 +224,8 @@ export default function GroupPoolsList({
                         variant="outlined"
                         size="small"
                         sx={{
-                          color: hasPredicted ? 'rgba(255,255,255,0.7)' : '#C9940A',
-                          borderColor: hasPredicted ? 'rgba(255,255,255,0.2)' : 'rgba(201,148,10,0.5)',
+                          color: isIncomplete ? '#C9940A' : hasPredicted ? 'rgba(255,255,255,0.7)' : '#C9940A',
+                          borderColor: isIncomplete ? 'rgba(201,148,10,0.5)' : hasPredicted ? 'rgba(255,255,255,0.2)' : 'rgba(201,148,10,0.5)',
                           textTransform: 'none',
                           fontWeight: 600,
                           fontSize: '12px',
@@ -229,12 +235,12 @@ export default function GroupPoolsList({
                           whiteSpace: 'nowrap',
                           minWidth: 'auto',
                           '&:hover': {
-                            borderColor: hasPredicted ? '#fff' : '#C9940A',
+                            borderColor: hasPredicted && !isIncomplete ? '#fff' : '#C9940A',
                             bgcolor: 'rgba(255,255,255,0.05)'
                           }
                         }}
                       >
-                        {hasPredicted ? 'Ver Palpite' : 'Palpitar'}
+                        {isIncomplete ? 'Continuar' : hasPredicted ? 'Ver Palpite' : 'Palpitar'}
                       </Button>
 
                       {isOwner && (

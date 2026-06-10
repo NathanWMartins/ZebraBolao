@@ -136,7 +136,29 @@ export async function savePredictions(poolId: string, predictions: { matchId: st
     return { error: 'Você não tem permissão para palpitar neste bolão.' }
   }
 
-  const predictionData = predictions.map(p => ({
+  // Busca os jogos para verificar se já começaram (proteção server-side)
+  const matchIds = predictions.map(p => p.matchId)
+  const { data: matchesData } = await supabase
+    .from('matches')
+    .select('id, match_date')
+    .in('id', matchIds)
+
+  const now = new Date()
+  const validMatchIds = new Set(
+    (matchesData || [])
+      .filter((m: any) => new Date(m.match_date) > now)
+      .map((m: any) => m.id)
+  )
+
+  const validPredictions = predictions.filter(p => validMatchIds.has(p.matchId))
+
+  const skippedCount = predictions.length - validPredictions.length
+
+  if (validPredictions.length === 0) {
+    return { error: 'Todos os jogos selecionados já começaram. Palpites não permitidos.' }
+  }
+
+  const predictionData = validPredictions.map(p => ({
     user_id: user.id,
     pool_id: poolId,
     match_id: p.matchId,
@@ -162,7 +184,7 @@ export async function savePredictions(poolId: string, predictions: { matchId: st
   revalidatePath(`/dashboard/groups/${pool.group_id}`)
   revalidatePath(`/dashboard/groups/${pool.group_id}/pools/${poolId}`)
 
-  return { success: true }
+  return { success: true, skippedCount }
 }
 
 export async function saveSpecialPredictions(poolId: string, predictions: { betType: string, value: string }[]) {

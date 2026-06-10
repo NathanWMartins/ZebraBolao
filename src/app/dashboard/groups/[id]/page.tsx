@@ -88,13 +88,19 @@ export default async function GroupPage(props: {
 
   const { data: userPredictions } = await supabase
     .from('predictions')
-    .select('pool_id')
+    .select('pool_id, match_id')
     .eq('user_id', user.id)
 
   const { data: userSpecialPredictions } = await supabase
     .from('special_predictions')
     .select('pool_id')
     .eq('user_id', user.id)
+
+  // Conta palpites por pool
+  const predictionCountByPool: Record<string, number> = {}
+  userPredictions?.forEach((p: any) => {
+    predictionCountByPool[p.pool_id] = (predictionCountByPool[p.pool_id] || 0) + 1
+  })
 
   const predictedPoolIds = new Set([
     ...(userPredictions?.map((p: any) => p.pool_id) || []),
@@ -160,6 +166,7 @@ export default async function GroupPage(props: {
             pools={filteredPools}
             allPools={allPools}
             predictedPoolIds={[...predictedPoolIds]}
+            predictionCountByPool={predictionCountByPool}
             activeTab={activeTab as 'active' | 'history' | 'ranking'}
             currentUserId={user.id}
           />
