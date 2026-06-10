@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 export async function signInWithEmail(prevState: any, formData: FormData) {
   const email = (formData.get('email') as string)?.trim().toLowerCase()
   const password = formData.get('password') as string
+  const next = (formData.get('next') as string) || '/dashboard'
 
   if (!email || !password) {
     return { error: 'Preencha todos os campos.' }
@@ -24,7 +25,7 @@ export async function signInWithEmail(prevState: any, formData: FormData) {
     return { error: 'Erro ao entrar. Tente novamente.' }
   }
 
-  redirect('/dashboard')
+  redirect(next)
 }
 
 export async function signUpWithEmail(prevState: any, formData: FormData) {
@@ -32,6 +33,7 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
   const password = formData.get('password') as string
   const confirmPassword = formData.get('confirmPassword') as string
   const username = (formData.get('username') as string)?.trim()
+  const next = (formData.get('next') as string) || '/dashboard'
 
   if (!email || !password || !confirmPassword || !username) {
     return { error: 'Preencha todos os campos.' }
@@ -74,7 +76,7 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
   // Se o usuário já tem sessão (confirmação desativada), redireciona direto
   const { data: { session } } = await supabase.auth.getSession()
   if (session) {
-    redirect('/dashboard')
+    redirect(next)
   }
 
   return { success: true }

@@ -33,10 +33,12 @@ function isRateLimited(ip: string): boolean {
 }
 
 export function middleware(request: NextRequest) {
+  const { pathname, search } = request.nextUrl
+
   // Rate limit only POST requests to the join page (Server Action submissions)
   if (
     request.method === 'POST' &&
-    request.nextUrl.pathname.startsWith('/dashboard/groups/join')
+    pathname.startsWith('/dashboard/groups/join')
   ) {
     const ip = getClientIp(request)
     if (isRateLimited(ip)) {
@@ -47,9 +49,13 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next()
+  // Injeta o pathname atual como header para server components usarem como next param
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', `${pathname}${search}`)
+
+  return NextResponse.next({ request: { headers: requestHeaders } })
 }
 
 export const config = {
-  matcher: '/dashboard/groups/join/:path*',
+  matcher: ['/dashboard/:path*'],
 }

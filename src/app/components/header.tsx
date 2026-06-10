@@ -4,6 +4,7 @@ import Link from "next/link";
 import DashboardClient from "../dashboard/dashboard-client";
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 
 export default async function Header() {
     const supabase = await createServerSupabaseClient()
@@ -12,7 +13,9 @@ export default async function Header() {
     } = await supabase.auth.getUser()
 
     if (!user) {
-        redirect('/')
+        const headersList = await headers()
+        const nextUrl = headersList.get('x-pathname') || '/dashboard'
+        redirect(`/auth/login?next=${encodeURIComponent(nextUrl)}`)
     }
 
     return (

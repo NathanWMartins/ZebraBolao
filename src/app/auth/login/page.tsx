@@ -8,6 +8,8 @@ import Link from 'next/link'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { createClient } from '@/lib/supabase'
 import { signInWithEmail } from '../actions'
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
 type State = { error: string; success?: undefined } | { success: boolean; error?: undefined }
 const initialState: State = { error: '' }
@@ -23,7 +25,9 @@ function GoogleIcon() {
   )
 }
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams()
+  const next = searchParams.get('next') || '/dashboard'
   const [state, formAction, isPending] = useActionState<State, FormData>(signInWithEmail, initialState)
   const [googleLoading, setGoogleLoading] = React.useState(false)
   const supabase = createClient()
@@ -32,13 +36,13 @@ export default function LoginPage() {
     setGoogleLoading(true)
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
     })
     setGoogleLoading(false)
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#111110', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', px: 2 }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#111110', backgroundImage: 'repeating-linear-gradient(-55deg, transparent, transparent 18px, rgba(255,255,255,0.03) 18px, rgba(255,255,255,0.03) 36px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', px: 2 }}>
       <Box sx={{ width: '100%', maxWidth: 400 }}>
         <Box sx={{ mb: 4 }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'rgba(255,255,255,0.5)' }}>
@@ -88,6 +92,7 @@ export default function LoginPage() {
 
           {/* Form email/senha */}
           <form action={formAction}>
+            <input type="hidden" name="next" value={next} />
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {state?.error && (
                 <Box sx={{ p: 1.5, bgcolor: 'rgba(220,38,38,0.1)', border: '0.5px solid rgba(220,38,38,0.3)', borderRadius: '8px' }}>
@@ -149,7 +154,7 @@ export default function LoginPage() {
 
           <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, textAlign: 'center', mt: 3 }}>
             Não tem uma conta?{' '}
-            <Link href="/auth/signup" style={{ textDecoration: 'none' }}>
+            <Link href={`/auth/signup${next !== '/dashboard' ? `?next=${encodeURIComponent(next)}` : ''}`} style={{ textDecoration: 'none' }}>
               <Typography component="span" sx={{ color: '#C9940A', fontSize: 13, '&:hover': { textDecoration: 'underline' } }}>
                 Criar conta
               </Typography>
@@ -158,6 +163,14 @@ export default function LoginPage() {
         </Box>
       </Box>
     </Box>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<Box sx={{ minHeight: '100vh', bgcolor: '#111110', display: 'flex', alignItems: 'center', justifyContent: 'center' }} />}>
+      <LoginForm />
+    </Suspense>
   )
 }
 
