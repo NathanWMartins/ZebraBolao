@@ -75,12 +75,14 @@ export async function addPlayerStat(playerName: string, team: string, goals: num
 export async function updateMatch(id: string, status: string, homeScore: number | null, awayScore: number | null) {
   const supabase = await checkAdmin()
 
-  const result = status === 'finished' ? `${homeScore}-${awayScore}` : null
   const { error } = await supabase
     .from('matches')
-    .update({ status, home_score: homeScore, away_score: awayScore, result })
+    .update({ status, home_score: homeScore, away_score: awayScore })
     .eq('id', id)
+
   if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/admin')
+  revalidatePath('/dashboard')
   return { success: true }
 }
 

@@ -42,20 +42,23 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
         }]))
     )
     const [savingMatch, setSavingMatch] = useState<string | null>(null)
+    const [matchFeedback, setMatchFeedback] = useState<Record<string, { ok: boolean, msg: string }>>({})
     const [calculatingMatch, setCalculatingMatch] = useState<string | null>(null)
-    const [calcResult, setCalcResult] = useState<Record<string, string>>({})
+    const [calcResult, setCalcResult] = useState<Record<string, { ok: boolean, msg: string }>>({})
     const [playerStats, setPlayerStats] = useState(initialStats)
     const [newPlayer, setNewPlayer] = useState<{ player: typeof PLAYERS[0] | null, goals: string, assists: string }>({ player: null, goals: '0', assists: '0' })
     const [addingPlayer, setAddingPlayer] = useState(false)
+    const [addPlayerFeedback, setAddPlayerFeedback] = useState<{ ok: boolean, msg: string } | null>(null)
     const [section, setSection] = useState<'matches' | 'stats'>('matches')
 
     const handleCalculateScores = async (id: string) => {
         setCalculatingMatch(id)
+        setCalcResult(prev => { const n = { ...prev }; delete n[id]; return n })
         try {
             const res = await calculateScoresForMatch(id)
-            setCalcResult(prev => ({ ...prev, [id]: `✓ ${res.poolsUpdated} bolão(ões) atualizados` }))
+            setCalcResult(prev => ({ ...prev, [id]: { ok: true, msg: `${res.poolsUpdated} bolão(ões) atualizados` } }))
         } catch (e: any) {
-            setCalcResult(prev => ({ ...prev, [id]: `Erro: ${e.message}` }))
+            setCalcResult(prev => ({ ...prev, [id]: { ok: false, msg: e.message } }))
         } finally {
             setCalculatingMatch(null)
         }
@@ -63,6 +66,7 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
 
     const handleSaveMatch = async (id: string) => {
         setSavingMatch(id)
+        setMatchFeedback(prev => { const n = { ...prev }; delete n[id]; return n })
         const s = matchStates[id]
         try {
             await updateMatch(
@@ -71,6 +75,9 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
                 s.home_score !== '' ? Number(s.home_score) : null,
                 s.away_score !== '' ? Number(s.away_score) : null,
             )
+            setMatchFeedback(prev => ({ ...prev, [id]: { ok: true, msg: 'Salvo com sucesso' } }))
+        } catch (e: any) {
+            setMatchFeedback(prev => ({ ...prev, [id]: { ok: false, msg: e.message } }))
         } finally {
             setSavingMatch(null)
         }
@@ -85,10 +92,14 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
     const handleAddPlayer = async () => {
         if (!newPlayer.player) return
         setAddingPlayer(true)
+        setAddPlayerFeedback(null)
         try {
             await addPlayerStat(newPlayer.player.name, newPlayer.player.team, Number(newPlayer.goals), Number(newPlayer.assists))
             setPlayerStats(prev => [...prev, { id: Date.now().toString(), player_name: newPlayer.player!.name, team: newPlayer.player!.team, goals: Number(newPlayer.goals), assists: Number(newPlayer.assists) }])
             setNewPlayer({ player: null, goals: '0', assists: '0' })
+            setAddPlayerFeedback({ ok: true, msg: 'Jogador adicionado com sucesso' })
+        } catch (e: any) {
+            setAddPlayerFeedback({ ok: false, msg: e.message })
         } finally {
             setAddingPlayer(false)
         }
@@ -186,10 +197,19 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
                                         </Button>
                                     )}
                                 </Box>
-                                {calcResult[match.id] && (
-                                    <Typography sx={{ color: calcResult[match.id].startsWith('Erro') ? '#ff6b6b' : '#4caf50', fontSize: 11, mt: 1 }}>
-                                        {calcResult[match.id]}
-                                    </Typography>
+                                {(matchFeedback[match.id] || calcResult[match.id]) && (
+                                    <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                                        {matchFeedback[match.id] && (
+                                            <Typography sx={{ fontSize: 11, color: matchFeedback[match.id].ok ? '#4caf50' : '#ff6b6b' }}>
+                                                {matchFeedback[match.id].ok ? '✓' : '✗'} {matchFeedback[match.id].msg}
+                                            </Typography>
+                                        )}
+                                        {calcResult[match.id] && (
+                                            <Typography sx={{ fontSize: 11, color: calcResult[match.id].ok ? '#4caf50' : '#ff6b6b' }}>
+                                                {calcResult[match.id].ok ? '✓' : '✗'} {calcResult[match.id].msg}
+                                            </Typography>
+                                        )}
+                                    </Box>
                                 )}
                             </Card>
                         )
@@ -262,6 +282,11 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
                             {addingPlayer ? <CircularProgress size={16} color="inherit" /> : 'Adicionar'}
                         </Button>
                     </Box>
+                    {addPlayerFeedback && (
+                        <Typography sx={{ fontSize: 12, mt: 1.5, color: addPlayerFeedback.ok ? '#4caf50' : '#ff6b6b' }}>
+                            {addPlayerFeedback.ok ? '✓' : '✗'} {addPlayerFeedback.msg}
+                        </Typography>
+                    )}
                 </Box>
             )}
         </Box>

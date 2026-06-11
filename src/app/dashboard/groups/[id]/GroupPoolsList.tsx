@@ -51,7 +51,7 @@ function PoolCardSkeleton() {
 function getStatusLabel(status: string) {
   switch (status) {
     case 'live': return { label: 'Ao Vivo', color: '#ff4444', bgcolor: 'rgba(255, 68, 68, 0.1)' }
-    case 'finished': return { label: 'Finalizado', color: '#00C851', bgcolor: 'rgba(0, 200, 81, 0.1)' }
+    case 'finished': return { label: 'Finalizado', color: '#63ca84', bgcolor: 'rgba(99,202,132,0.12)' }
     default: return { label: 'Agendado', color: 'rgba(255,255,255,0.5)', bgcolor: 'rgba(255,255,255,0.05)' }
   }
 }
@@ -214,7 +214,7 @@ export default function GroupPoolsList({
                           fontWeight: 700,
                           color: status.color,
                           bgcolor: status.bgcolor,
-                          border: `1px solid ${status.color}33`,
+                          border: `1px solid ${status.color}55`,
                           '& .MuiChip-label': { px: 1.5 }
                         }}
                       />

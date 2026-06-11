@@ -277,6 +277,8 @@ function MatchCard({ match }: { match: any }) {
     minute: '2-digit'
   })
   const matchTimeBRT = formatter.format(new Date(match.match_date))
+  const isLive = ['live', 'in_play', 'playing'].includes(match.status)
+  const isFinished = ['finished', 'completed', 'completes'].includes(match.status)
 
   return (
     <Box sx={{
@@ -342,17 +344,13 @@ function MatchCard({ match }: { match: any }) {
       </Box>
 
       <Box sx={{
-        bgcolor: 'rgba(201,148,10,0.1)',
-        color: (match.status === 'live' || match.status === 'in_play' || match.status === 'playing') ? '#fd4040ff' : '#C9940A',
+        bgcolor: isLive ? 'rgba(201,10,10,0.1)' : isFinished ? 'rgba(99,202,132,0.12)' : 'rgba(201,148,10,0.1)',
+        color: isLive ? '#fd4040' : isFinished ? '#63ca84' : '#C9940A',
         px: 2,
         py: 1,
         alignSelf: { xs: 'center', md: 'auto' },
         borderRadius: '8px',
-        border: (match.status === 'live' || match.status === 'in_play' || match.status === 'playing') ? '0.5px solid rgba(201, 10, 10, 0.2)' : '0.5px solid rgba(201,148,10,0.2)',
-        transition: 'background-color 0.2s',
-        '&:hover': {
-          bgcolor: (match.status === 'live' || match.status === 'in_play' || match.status === 'playing') ? 'rgba(201, 10, 10, 0.2)' : 'rgba(201,148,10,0.15)',
-        }
+        border: isLive ? '0.5px solid rgba(201,10,10,0.2)' : isFinished ? '0.5px solid rgba(99,202,132,0.3)' : '0.5px solid rgba(201,148,10,0.2)',
       }}>
         <Typography sx={{ fontSize: { xs: 10, md: 13 }, fontWeight: 600 }}>{translate(match)}</Typography>
       </Box>
