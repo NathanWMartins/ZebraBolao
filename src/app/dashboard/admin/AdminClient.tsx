@@ -3,13 +3,15 @@
 import React, { useState } from 'react'
 import {
     Box, Typography, IconButton, Card, Stack, CircularProgress,
-    Select, MenuItem, TextField, Button, Avatar, Divider
+    Select, MenuItem, TextField, Button, Avatar, Divider, Autocomplete
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import Link from 'next/link'
 import { updateMatch, incrementStat, decrementStat, addPlayerStat } from '../admin-actions'
 import { translateTeam } from '@/lib/teamTranslations'
 import { getFlagUrl } from '@/lib/teamFlags'
+import TeamFlag from '@/app/components/TeamFlag'
+import { PLAYERS } from '@/lib/players'
 
 interface Match {
     id: string
@@ -41,7 +43,7 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
     )
     const [savingMatch, setSavingMatch] = useState<string | null>(null)
     const [playerStats, setPlayerStats] = useState(initialStats)
-    const [newPlayer, setNewPlayer] = useState({ name: '', team: '', goals: '0', assists: '0' })
+    const [newPlayer, setNewPlayer] = useState<{ player: typeof PLAYERS[0] | null, goals: string, assists: string }>({ player: null, goals: '0', assists: '0' })
     const [addingPlayer, setAddingPlayer] = useState(false)
     const [section, setSection] = useState<'matches' | 'stats'>('matches')
 
@@ -67,12 +69,12 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
     }
 
     const handleAddPlayer = async () => {
+        if (!newPlayer.player) return
         setAddingPlayer(true)
         try {
-            await addPlayerStat(newPlayer.name, newPlayer.team, Number(newPlayer.goals), Number(newPlayer.assists))
-            setNewPlayer({ name: '', team: '', goals: '0', assists: '0' })
-            // reload stats
-            setPlayerStats(prev => [...prev, { id: Date.now().toString(), player_name: newPlayer.name, team: newPlayer.team, goals: Number(newPlayer.goals), assists: Number(newPlayer.assists) }])
+            await addPlayerStat(newPlayer.player.name, newPlayer.player.team, Number(newPlayer.goals), Number(newPlayer.assists))
+            setPlayerStats(prev => [...prev, { id: Date.now().toString(), player_name: newPlayer.player!.name, team: newPlayer.player!.team, goals: Number(newPlayer.goals), assists: Number(newPlayer.assists) }])
+            setNewPlayer({ player: null, goals: '0', assists: '0' })
         } finally {
             setAddingPlayer(false)
         }
@@ -197,16 +199,36 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
 
                     <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 3 }} />
                     <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', mb: 2 }}>Adicionar jogador</Typography>
-                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-                        <TextField value={newPlayer.name} onChange={e => setNewPlayer(p => ({ ...p, name: e.target.value }))} placeholder="Nome" size="small"
-                            slotProps={{ htmlInput: { style: { color: '#fff' } } }} sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', flex: 1, minWidth: 140 }} />
-                        <TextField value={newPlayer.team} onChange={e => setNewPlayer(p => ({ ...p, team: e.target.value }))} placeholder="Seleção (en)" size="small"
-                            slotProps={{ htmlInput: { style: { color: '#fff' } } }} sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', flex: 1, minWidth: 120 }} />
+                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <Autocomplete
+                            options={PLAYERS}
+                            getOptionLabel={o => o.name}
+                            value={newPlayer.player}
+                            onChange={(_, val) => setNewPlayer(p => ({ ...p, player: val }))}
+                            sx={{ flex: 1, minWidth: 200 }}
+                            slotProps={{ paper: { sx: { bgcolor: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', '& .MuiAutocomplete-option': { '&:hover': { bgcolor: 'rgba(201,148,10,0.1)' } } } } }}
+                            renderOption={(props, option, { index }) => {
+                                const { key, ...rest } = props as any
+                                return (
+                                    <Box key={`${option.name}-${option.team}-${index}`} component="li" {...rest} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1, px: 1.5 }}>
+                                        <TeamFlag teamName={option.team} size={20} />
+                                        <Box>
+                                            <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{option.name}</Typography>
+                                            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{translateTeam(option.team)}</Typography>
+                                        </Box>
+                                    </Box>
+                                )
+                            }}
+                            renderInput={params => (
+                                <TextField {...params} placeholder="Buscar jogador..." size="small"
+                                    sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', input: { color: '#fff' } }} />
+                            )}
+                        />
                         <TextField value={newPlayer.goals} onChange={e => setNewPlayer(p => ({ ...p, goals: e.target.value }))} placeholder="Gols" size="small" type="number"
-                            slotProps={{ htmlInput: { style: { color: '#fff', width: 48 } } }} sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', width: 80 }} />
+                            slotProps={{ htmlInput: { style: { color: '#fff', textAlign: 'center' } } }} sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', width: 80 }} />
                         <TextField value={newPlayer.assists} onChange={e => setNewPlayer(p => ({ ...p, assists: e.target.value }))} placeholder="Assists" size="small" type="number"
-                            slotProps={{ htmlInput: { style: { color: '#fff', width: 48 } } }} sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', width: 80 }} />
-                        <Button onClick={handleAddPlayer} disabled={addingPlayer || !newPlayer.name || !newPlayer.team}
+                            slotProps={{ htmlInput: { style: { color: '#fff', textAlign: 'center' } } }} sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', width: 80 }} />
+                        <Button onClick={handleAddPlayer} disabled={addingPlayer || !newPlayer.player}
                             sx={{ bgcolor: '#C9940A', color: '#000', fontWeight: 700, fontSize: 13, px: 3, borderRadius: '10px', '&:hover': { bgcolor: '#E6AC10' }, '&.Mui-disabled': { bgcolor: 'rgba(201,148,10,0.3)' } }}>
                             {addingPlayer ? <CircularProgress size={16} color="inherit" /> : 'Adicionar'}
                         </Button>

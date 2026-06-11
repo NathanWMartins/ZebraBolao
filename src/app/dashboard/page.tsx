@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import DashboardClient from './dashboard-client'
 import CountdownClient from './countdown-client'
+import TournamentStats from './TournamentStats'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import GroupAddIcon from '@mui/icons-material/GroupAdd'
@@ -42,6 +43,22 @@ export default async function DashboardPage() {
     .gte('match_date', targetDateObj.toISOString())
     .lt('match_date', nextDateObj.toISOString())
     .order('match_date', { ascending: true })
+
+  const { data: topScorers } = await supabase
+    .from('player_stats')
+    .select('*')
+    .gt('goals', 0)
+    .order('goals', { ascending: false })
+    .limit(5)
+
+  const { data: topAssists } = await supabase
+    .from('player_stats')
+    .select('*')
+    .gt('assists', 0)
+    .order('assists', { ascending: false })
+    .limit(5)
+
+  const showStats = !!(topScorers?.length || topAssists?.length)
 
   return (
     <Box component="main" sx={{ maxWidth: 1200, mx: 'auto', px: 4, py: 6 }}>
@@ -110,7 +127,7 @@ export default async function DashboardPage() {
 
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4 }}>
         {/* Próximos Jogos */}
-        <Box component="section" sx={{ flex: 1 }}>
+        <Box component="section" sx={{ flex: 1, minWidth: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography sx={{
               fontSize: 14,
@@ -150,6 +167,14 @@ export default async function DashboardPage() {
             )}
           </Box>
         </Box>
+
+        {/* Artilheiros & Assistências */}
+        <TournamentStats
+          topScorers={topScorers ?? []}
+          topAssists={topAssists ?? []}
+          isAdmin={false}
+          showStats={showStats}
+        />
       </Box>
     </Box>
   )
