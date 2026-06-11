@@ -13,7 +13,6 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import TeamFlag from '../components/TeamFlag'
 import { translateTeam } from '@/lib/teamTranslations'
-import TournamentStats from './TournamentStats'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
@@ -43,24 +42,6 @@ export default async function DashboardPage() {
     .gte('match_date', targetDateObj.toISOString())
     .lt('match_date', nextDateObj.toISOString())
     .order('match_date', { ascending: true })
-
-  const { data: topScorers, error: scorersError } = await supabase
-    .from('player_stats')
-    .select('*')
-    .gt('goals', 0)
-    .order('goals', { ascending: false })
-    .limit(3)
-
-  const { data: topAssists, error: assistsError } = await supabase
-    .from('player_stats')
-    .select('*')
-    .gt('assists', 0)
-    .order('assists', { ascending: false })
-    .limit(3)
-
-  const showStats = !scorersError && !assistsError
-  const adminEmails = [process.env.ADMIN_EMAIL, 'nathanwm2002@gmail.com', 'nathan.wm.2002@gmail.com']
-  const isAdmin = !!user.email && adminEmails.includes(user.email)
 
   return (
     <Box component="main" sx={{ maxWidth: 1200, mx: 'auto', px: 4, py: 6 }}>
@@ -129,7 +110,7 @@ export default async function DashboardPage() {
 
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4 }}>
         {/* Próximos Jogos */}
-        <Box component="section" sx={{ flex: { xs: '1 1 auto', md: '2 1 0%' } }}>
+        <Box component="section" sx={{ flex: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography sx={{
               fontSize: 14,
@@ -169,14 +150,6 @@ export default async function DashboardPage() {
             )}
           </Box>
         </Box>
-
-        {/* Estatísticas */}
-        <TournamentStats 
-          topScorers={topScorers || []} 
-          topAssists={topAssists || []} 
-          isAdmin={isAdmin} 
-          showStats={showStats} 
-        />
       </Box>
     </Box>
   )

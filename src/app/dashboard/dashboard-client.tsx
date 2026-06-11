@@ -9,9 +9,10 @@ import { deleteAccount } from './account-actions'
 
 interface Props {
   user: User
+  isAdmin?: boolean
 }
 
-export default function DashboardClient({ user }: Props) {
+export default function DashboardClient({ user, isAdmin }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [supportCopied, setSupportCopied] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -109,6 +110,21 @@ export default function DashboardClient({ user }: Props) {
               <p style={{ margin: 0, fontSize: 13, color: '#fff', fontWeight: 500 }}>{name.split(' ')[0]}</p>
               <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>{user.email}</p>
             </div>
+
+            {/* Admin */}
+            {isAdmin && (
+              <a
+                href="/dashboard/admin"
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, color: '#C9940A', textDecoration: 'none', transition: 'background-color 0.15s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(201,148,10,0.08)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M7 1.5a2 2 0 100 4 2 2 0 000-4zM3 10.5c0-2.21 1.79-4 4-4s4 1.79 4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Admin
+              </a>
+            )}
 
             {/* Sair */}
             <button

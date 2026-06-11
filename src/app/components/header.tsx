@@ -18,6 +18,9 @@ export default async function Header() {
         redirect(`/auth/login?next=${encodeURIComponent(nextUrl)}`)
     }
 
+    const adminEmails = [process.env.ADMIN_EMAIL].filter(Boolean) as string[]
+    const isAdmin = !!user.email && adminEmails.includes(user.email)
+
     return (
         <Box sx={{
             display: 'flex',
@@ -43,7 +46,7 @@ export default async function Header() {
             </Link>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <DashboardClient user={user} />
+                <DashboardClient user={user} isAdmin={isAdmin} />
             </Box>
         </Box>
     )
