@@ -3,7 +3,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase'
 
 async function checkAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -74,11 +73,7 @@ export async function addPlayerStat(playerName: string, team: string, goals: num
 }
 
 export async function updateMatch(id: string, status: string, homeScore: number | null, awayScore: number | null) {
-  const supabase = await createAdminClient()
-  const client = await createClient()
-  const { data: { user } } = await client.auth.getUser()
-  const adminEmails = [process.env.ADMIN_EMAIL].filter(Boolean) as string[]
-  if (!user?.email || !adminEmails.includes(user.email)) throw new Error('Acesso negado.')
+  const supabase = await checkAdmin()
 
   const result = status === 'finished' ? `${homeScore}-${awayScore}` : null
   const { error } = await supabase
