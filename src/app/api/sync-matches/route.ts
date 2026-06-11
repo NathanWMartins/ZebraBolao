@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { getMatchesAPI, getKnockoutMatchesAPI, checkAndReserveApiCalls } from '@/lib/wc2026'
 import { createAdminClient } from '@/lib/supabase-admin'
 import type { WC2026MatchAPI } from '@/lib/wc2026'
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 const SYNC_SECRET = process.env.SYNC_SECRET
 if (!SYNC_SECRET) throw new Error('SYNC_SECRET env variable is required')
@@ -33,75 +32,6 @@ async function upsertMatches(supabase: SupabaseClient, apiMatches: WC2026MatchAP
   return rows.length
 }
 
-async function calculateAndSaveScores(
-  supabase: SupabaseClient,
-  pool: { id: string; type: string; group_id: string; match_ids: string[] },
-  poolMatches: any[]
-) {
-  const { data: predictions, error } = await supabase
-    .from('predictions')
-    .select('user_id, match_id, prediction')
-    .eq('pool_id', pool.id)
-
-  if (error || !predictions || predictions.length === 0) return
-
-  const matchById = new Map(poolMatches.map((m: any) => [m.id, m]))
-  const userPoints: Record<string, number> = {}
-
-  for (const pred of predictions) {
-    const match = matchById.get(pred.match_id)
-    if (!match || match.home_score === null || match.away_score === null) continue
-
-    const homeScore = match.home_score as number
-    const awayScore = match.away_score as number
-    const actualResult =
-      homeScore > awayScore ? 'Time A' : awayScore > homeScore ? 'Time B' : 'Empate'
-
-    if (!userPoints[pred.user_id]) userPoints[pred.user_id] = 0
-
-    if (pool.type === 'score') {
-      const exactScore = `${homeScore}-${awayScore}`
-      if (pred.prediction === exactScore) {
-        userPoints[pred.user_id] += 3
-      } else {
-        const predParts = pred.prediction?.split('-')
-        if (predParts?.length === 2) {
-          const predHome = parseInt(predParts[0])
-          const predAway = parseInt(predParts[1])
-          const predResult =
-            predHome > predAway ? 'Time A' : predAway > predHome ? 'Time B' : 'Empate'
-          if (predResult === actualResult) {
-            userPoints[pred.user_id] += 1
-          }
-        }
-      }
-    } else {
-      if (pred.prediction === actualResult) {
-        userPoints[pred.user_id] += 1
-      }
-    }
-  }
-
-  if (Object.keys(userPoints).length === 0) return
-
-  for (const [userId, points] of Object.entries(userPoints)) {
-    const { data: existing } = await supabase
-      .from('scores')
-      .select('total_points')
-      .eq('user_id', userId)
-      .eq('group_id', pool.group_id)
-      .maybeSingle()
-
-    const newTotal = (existing?.total_points ?? 0) + points
-
-    await supabase
-      .from('scores')
-      .upsert(
-        { user_id: userId, group_id: pool.group_id, total_points: newTotal, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id, group_id' }
-      )
-  }
-}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -137,12 +67,12 @@ export async function GET(request: Request) {
       .from('pools')
       .select('id, match_ids, status, type, group_id')
 
-    let poolsScored = 0
+    let poolsUpdated = 0
 
     if (!poolsError && pools) {
       const { data: allMatches } = await supabaseAdmin
         .from('matches')
-        .select('id, status, match_date, home_score, away_score, result')
+        .select('id, status, match_date')
 
       const matchMap = new Map(allMatches?.map((m: any) => [m.id, m]) || [])
 
@@ -175,11 +105,7 @@ export async function GET(request: Request) {
             .from('pools')
             .update({ status: newStatus })
             .eq('id', pool.id)
-
-          if (newStatus === 'finished') {
-            await calculateAndSaveScores(supabaseAdmin, pool, poolMatches)
-            poolsScored++
-          }
+          poolsUpdated++
         }
       }
     }
@@ -191,7 +117,7 @@ export async function GET(request: Request) {
       knockoutMatchesSynced: knockoutCount,
       groupStageFinished: allGroupFinished,
       poolsChecked: pools?.length || 0,
-      poolsScored,
+      poolsUpdated,
     })
   } catch (err: any) {
     if (err.message?.startsWith('API_LIMIT_EXCEEDED')) {

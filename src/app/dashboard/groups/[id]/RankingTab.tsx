@@ -25,12 +25,13 @@ interface RankingEntry {
 interface RankingTabProps {
   groupId: string
   finishedPools: Pool[]
+  allPools: Pool[]
   currentUserId: string
 }
 
 const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32']
 
-export default function RankingTab({ groupId, finishedPools, currentUserId }: RankingTabProps) {
+export default function RankingTab({ groupId, finishedPools, allPools, currentUserId }: RankingTabProps) {
   const [mode, setMode] = useState<'general' | string>('general')
   const [ranking, setRanking] = useState<RankingEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -91,8 +92,13 @@ export default function RankingTab({ groupId, finishedPools, currentUserId }: Ra
           }}
         >
           <ToggleButton value="general">Geral</ToggleButton>
-          {finishedPools.map(p => (
-            <ToggleButton key={p.id} value={p.id}>{p.name}</ToggleButton>
+          {allPools.map(p => (
+            <ToggleButton key={p.id} value={p.id}>
+              {p.name}
+              {p.status === 'finished' && (
+                <Typography component="span" sx={{ ml: 0.5, fontSize: 10, color: '#00C851', opacity: 0.8 }}>✓</Typography>
+              )}
+            </ToggleButton>
           ))}
         </ToggleButtonGroup>
       </Box>
@@ -112,9 +118,9 @@ export default function RankingTab({ groupId, finishedPools, currentUserId }: Ra
           textAlign: 'center'
         }}>
           <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>
-            {finishedPools.length === 0
-              ? 'Nenhum bolão finalizado ainda. O ranking aparece quando os bolões terminam.'
-              : 'Nenhum palpite computado ainda.'}
+            {allPools.length === 0
+              ? 'Nenhum bolão criado ainda.'
+              : 'Nenhum ponto computado ainda. Os pontos aparecem após o admin calcular cada jogo.'}
           </Typography>
         </Box>
       ) : (

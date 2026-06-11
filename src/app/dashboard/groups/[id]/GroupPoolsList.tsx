@@ -115,6 +115,7 @@ export default function GroupPoolsList({
         <RankingTab
           groupId={groupId}
           finishedPools={finishedPools}
+          allPools={allPools}
           currentUserId={currentUserId}
         />
       ) : isPending ? (

@@ -7,7 +7,7 @@ import {
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import Link from 'next/link'
-import { updateMatch, incrementStat, decrementStat, addPlayerStat } from '../admin-actions'
+import { updateMatch, incrementStat, decrementStat, addPlayerStat, calculateScoresForMatch } from '../admin-actions'
 import { translateTeam } from '@/lib/teamTranslations'
 import { getFlagUrl } from '@/lib/teamFlags'
 import TeamFlag from '@/app/components/TeamFlag'
@@ -42,10 +42,24 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
         }]))
     )
     const [savingMatch, setSavingMatch] = useState<string | null>(null)
+    const [calculatingMatch, setCalculatingMatch] = useState<string | null>(null)
+    const [calcResult, setCalcResult] = useState<Record<string, string>>({})
     const [playerStats, setPlayerStats] = useState(initialStats)
     const [newPlayer, setNewPlayer] = useState<{ player: typeof PLAYERS[0] | null, goals: string, assists: string }>({ player: null, goals: '0', assists: '0' })
     const [addingPlayer, setAddingPlayer] = useState(false)
     const [section, setSection] = useState<'matches' | 'stats'>('matches')
+
+    const handleCalculateScores = async (id: string) => {
+        setCalculatingMatch(id)
+        try {
+            const res = await calculateScoresForMatch(id)
+            setCalcResult(prev => ({ ...prev, [id]: `✓ ${res.poolsUpdated} bolão(ões) atualizados` }))
+        } catch (e: any) {
+            setCalcResult(prev => ({ ...prev, [id]: `Erro: ${e.message}` }))
+        } finally {
+            setCalculatingMatch(null)
+        }
+    }
 
     const handleSaveMatch = async (id: string) => {
         setSavingMatch(id)
@@ -161,7 +175,22 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
                                     >
                                         {saving ? <CircularProgress size={14} color="inherit" /> : 'Salvar'}
                                     </Button>
+                                    {s.status === 'finished' && (
+                                        <Button
+                                            onClick={() => handleCalculateScores(match.id)}
+                                            disabled={calculatingMatch === match.id}
+                                            size="small"
+                                            sx={{ bgcolor: 'rgba(255,255,255,0.07)', color: '#fff', fontWeight: 700, fontSize: 12, px: 2, borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' }, '&.Mui-disabled': { opacity: 0.4 } }}
+                                        >
+                                            {calculatingMatch === match.id ? <CircularProgress size={14} color="inherit" /> : '⚡ Calcular Pontos'}
+                                        </Button>
+                                    )}
                                 </Box>
+                                {calcResult[match.id] && (
+                                    <Typography sx={{ color: calcResult[match.id].startsWith('Erro') ? '#ff6b6b' : '#4caf50', fontSize: 11, mt: 1 }}>
+                                        {calcResult[match.id]}
+                                    </Typography>
+                                )}
                             </Card>
                         )
                     })}
