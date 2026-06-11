@@ -6,7 +6,7 @@ import type { WC2026MatchAPI } from '@/lib/wc2026'
 const SYNC_SECRET = process.env.SYNC_SECRET
 if (!SYNC_SECRET) throw new Error('SYNC_SECRET env variable is required')
 
-async function upsertMatches(supabase: SupabaseClient, apiMatches: WC2026MatchAPI[]) {
+async function upsertMatches(supabase: ReturnType<typeof createAdminClient>, apiMatches: WC2026MatchAPI[]) {
   const rows = apiMatches.map((match) => ({
     external_id: String(match.id),
     home_team: match.home_team,
