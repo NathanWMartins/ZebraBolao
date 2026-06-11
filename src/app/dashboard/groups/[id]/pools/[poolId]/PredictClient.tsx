@@ -13,12 +13,14 @@ import {
   Paper,
   Grid,
   TextField,
-  Autocomplete
+  Autocomplete,
+  Collapse
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CheckIcon from '@mui/icons-material/Check'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import PeopleIcon from '@mui/icons-material/People'
+import FilterListIcon from '@mui/icons-material/FilterList'
 import Link from 'next/link'
 import { savePredictions, saveSpecialPredictions } from '../../actions'
 import { useRouter } from 'next/navigation'
@@ -83,6 +85,9 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
   const [skippedWarning, setSkippedWarning] = useState<string | null>(null)
   const [showGroupPredictions, setShowGroupPredictions] = useState(false)
   const [localMatches, setLocalMatches] = useState<Match[]>(matches)
+  const [filterGroup, setFilterGroup] = useState<string | null>(null)
+  const [filterDate, setFilterDate] = useState<string | null>(null)
+  const [filterOpen, setFilterOpen] = useState(false)
 
   const alreadySavedSpecial = initialSpecialPredictions.length > 0
   const [specialValues, setSpecialValues] = useState<Record<string, string>>(() => {
@@ -351,241 +356,330 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
         </Paper>
       )}
 
-      <Stack spacing={3} sx={{ alignItems: 'center' }}>
-        {localMatches.map(match => {
-          const prediction = predictions.find(p => p.matchId === match.id)
-          const matchDate = new Date(match.match_date)
-          const isStarted = matchDate < new Date()
-          const currentChoice = prediction?.prediction
-
-          const selectedGold = '#C9940A'
-          const isDisabled = isStarted
-
-          return (
-            <Card key={match.id} sx={{
-              bgcolor: 'rgba(12,12,12)',
-              border: '1px solid rgba(255,255,255,0.05)',
-              borderRadius: '16px',
-              overflow: 'hidden',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-              transition: 'all 0.3s ease',
-              maxWidth: 600,
-              mx: 'auto',
-              width: '100%',
-              opacity: isDisabled && !currentChoice ? 0.6 : 1,
-              '&:hover': { borderColor: isDisabled ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)' }
-            }}>
-              {/* Top Banner with Match Info */}
-              <Box sx={{
-                bgcolor: 'rgba(255,255,255,0.02)',
-                px: 2,
-                py: 1,
-                display: 'flex',
-                justifyContent: 'space-between',
-                borderBottom: '1px solid rgba(255,255,255,0.05)'
-              }}>
-                <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  {match.round !== 'group' ? match.round : `Grupo ${match.group_name}`}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {match.status === 'live' && (
-                    <Box sx={{ px: 1, bgcolor: '#ff4444', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
-                      <Typography sx={{ color: '#fff', fontSize: 9, fontWeight: 900 }}>AO VIVO</Typography>
+      {/* Filter Controls */}
+      {localMatches.length > 0 && (() => {
+        const hasGroupStage = localMatches.some(m => m.round === 'group')
+        const groups = hasGroupStage
+          ? Array.from(new Set(localMatches.filter(m => m.round === 'group').map(m => m.group_name))).sort()
+          : []
+        const dates = Array.from(new Set(localMatches.map(m =>
+          new Date(m.match_date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' })
+        )))
+        const activeCount = (filterGroup ? 1 : 0) + (filterDate ? 1 : 0)
+        return (
+          <Box sx={{ mb: 3 }}>
+            <Box
+              onClick={() => setFilterOpen(prev => !prev)}
+              sx={{
+                display: 'inline-flex', alignItems: 'center', gap: 0.75,
+                px: 2, py: 0.75, borderRadius: '20px', cursor: 'pointer',
+                border: '1px solid',
+                borderColor: activeCount > 0 ? '#C9940A' : 'rgba(255,255,255,0.1)',
+                bgcolor: activeCount > 0 ? 'rgba(201,148,10,0.12)' : 'transparent',
+                transition: 'all 0.2s',
+                mb: filterOpen ? 2 : 0,
+              }}
+            >
+              <FilterListIcon sx={{ fontSize: 14, color: activeCount > 0 ? '#C9940A' : 'rgba(255,255,255,0.4)' }} />
+              <Typography sx={{ color: activeCount > 0 ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>
+                Filtro{activeCount > 0 && ` (${activeCount})`}
+              </Typography>
+            </Box>
+            <Collapse in={filterOpen} timeout={50}>
+              <Box sx={{ pt: 0.5 }}>
+                {groups.length > 0 && (
+                  <>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', mb: 1 }}>Grupo</Typography>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                      {groups.map(g => (
+                        <Box key={g} onClick={() => setFilterGroup(prev => prev === g ? null : g)}
+                          sx={{
+                            px: 2, py: 0.6, borderRadius: '20px', cursor: 'pointer', border: '1px solid',
+                            borderColor: filterGroup === g ? '#C9940A' : 'rgba(255,255,255,0.1)',
+                            bgcolor: filterGroup === g ? 'rgba(201,148,10,0.12)' : 'transparent', transition: 'all 0.2s'
+                          }}>
+                          <Typography sx={{ color: filterGroup === g ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>{g}</Typography>
+                        </Box>
+                      ))}
                     </Box>
-                  )}
-                  <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 700 }}>
-                    {matchDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} • {matchDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}h
-                  </Typography>
+                  </>
+                )}
+                <Typography sx={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', mb: 1 }}>Data</Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {dates.map(d => (
+                    <Box key={d} onClick={() => setFilterDate(prev => prev === d ? null : d)}
+                      sx={{
+                        px: 2, py: 0.6, borderRadius: '20px', cursor: 'pointer', border: '1px solid',
+                        borderColor: filterDate === d ? '#C9940A' : 'rgba(255,255,255,0.1)',
+                        bgcolor: filterDate === d ? 'rgba(201,148,10,0.12)' : 'transparent', transition: 'all 0.2s'
+                      }}>
+                      <Typography sx={{ color: filterDate === d ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>{d}</Typography>
+                    </Box>
+                  ))}
                 </Box>
               </Box>
+            </Collapse>
+          </Box>
+        )
+      })()}
 
-              {/* Main Selection Area */}
-              {poolType === 'score' ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 3 }}>
-                  {/* Home Team */}
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                    <Avatar
-                      src={getFlagUrl(match.home_team, 80)}
-                      sx={{ width: 48, height: 48, mb: 1, border: '1px solid rgba(255,255,255,0.1)' }}
-                    >
-                      {match.home_team.charAt(0)}
-                    </Avatar>
-                    <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14, mb: 2, textAlign: 'center' }}>
-                      {translateTeam(match.home_team)}
-                    </Typography>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      disabled={isDisabled}
-                      value={currentChoice ? currentChoice.split('-')[0] : ''}
-                      onChange={(e) => handleScoreChange(match.id, 'home', e.target.value)}
-                      style={{
-                        width: '60px',
-                        height: '60px',
-                        fontSize: '24px',
-                        fontWeight: 'bold',
-                        textAlign: 'center',
-                        backgroundColor: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                        borderRadius: '12px',
-                        color: '#fff',
-                        outline: 'none'
-                      }}
-                    />
-                  </Box>
-
-                  <Typography sx={{ color: 'rgba(255,255,255,0.2)', fontWeight: 900, fontSize: 20, mx: 2 }}>X</Typography>
-
-                  {/* Away Team */}
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                    <Avatar
-                      src={getFlagUrl(match.away_team, 80)}
-                      sx={{ width: 48, height: 48, mb: 1, border: '1px solid rgba(255,255,255,0.1)' }}
-                    >
-                      {match.away_team.charAt(0)}
-                    </Avatar>
-                    <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14, mb: 2, textAlign: 'center' }}>
-                      {translateTeam(match.away_team)}
-                    </Typography>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      disabled={isDisabled}
-                      value={currentChoice ? currentChoice.split('-')[1] : ''}
-                      onChange={(e) => handleScoreChange(match.id, 'away', e.target.value)}
-                      style={{
-                        width: '60px',
-                        height: '60px',
-                        fontSize: '24px',
-                        fontWeight: 'bold',
-                        textAlign: 'center',
-                        backgroundColor: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                        borderRadius: '12px',
-                        color: '#fff',
-                        outline: 'none'
-                      }}
-                    />
-                  </Box>
-                </Box>
-              ) : (
-                <Box sx={{ display: 'flex', alignItems: 'stretch' }}>
-                  {/* Team A Selection */}
-                  <Box
-                    onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Time A')}
-                    sx={{
-                      flex: 1,
-                      p: 2,
-                      textAlign: 'center',
-                      cursor: isDisabled ? 'default' : 'pointer',
-                      bgcolor: currentChoice === 'Time A' ? `${selectedGold}15` : 'transparent',
-                      borderRight: '1px solid rgba(255,255,255,0.05)',
-                      transition: 'all 0.2s',
-                      position: 'relative',
-                      '&:hover': !isDisabled && !loading ? { bgcolor: currentChoice === 'Time A' ? `${selectedGold}25` : 'rgba(255,255,255,0.02)' } : {}
-                    }}
-                  >
-                    {currentChoice === 'Time A' && (
-                      <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: selectedGold }} />
-                    )}
-                    <Avatar
-                      src={getFlagUrl(match.home_team, 80)}
-                      sx={{ width: 40, height: 40, mx: 'auto', mb: 1.5, border: currentChoice === 'Time A' ? `2px solid ${selectedGold}` : '1px solid rgba(255,255,255,0.1)' }}
-                    >
-                      {match.home_team.charAt(0)}
-                    </Avatar>
-                    <Typography sx={{ color: currentChoice === 'Time A' ? selectedGold : '#fff', fontWeight: 700, fontSize: 13 }}>
-                      {translateTeam(match.home_team)}
-                    </Typography>
-                    <Typography sx={{ color: isDisabled && currentChoice !== 'Time A' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
-                      {currentChoice === 'Time A' ? 'ESCOLHIDO' : 'VENCE'}
-                    </Typography>
-                  </Box>
-
-                  {/* Draw Selection */}
-                  <Box
-                    onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Empate')}
-                    sx={{
-                      flex: 0.6,
-                      p: 2,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      textAlign: 'center',
-                      cursor: isDisabled ? 'default' : 'pointer',
-                      bgcolor: currentChoice === 'Empate' ? 'rgba(255,255,255,0.08)' : 'transparent',
-                      borderRight: '1px solid rgba(255,255,255,0.05)',
-                      transition: 'all 0.2s',
-                      position: 'relative',
-                      '&:hover': !isDisabled && !loading ? { bgcolor: currentChoice === 'Empate' ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.02)' } : {}
-                    }}
-                  >
-                    {currentChoice === 'Empate' && (
-                      <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: 'rgba(255,255,255,0.4)' }} />
-                    )}
-                    <Typography sx={{
-                      color: currentChoice === 'Empate' ? '#fff' : 'rgba(255,255,255,0.2)',
-                      fontWeight: 900,
-                      fontSize: 18,
-                      letterSpacing: '1px'
-                    }}>
-                      {match.home_score !== null ? `${match.home_score} x ${match.away_score}` : 'X'}
-                    </Typography>
-                    <Typography sx={{
-                      color: currentChoice === 'Empate' ? '#fff' : 'rgba(255,255,255,0.2)',
-                      fontSize: 9,
-                      fontWeight: 800,
-                      mt: 0.5
-                    }}>
-                      EMPATE
-                    </Typography>
-                  </Box>
-
-                  {/* Team B Selection */}
-                  <Box
-                    onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Time B')}
-                    sx={{
-                      flex: 1,
-                      p: 2,
-                      textAlign: 'center',
-                      cursor: isDisabled ? 'default' : 'pointer',
-                      bgcolor: currentChoice === 'Time B' ? `${selectedGold}15` : 'transparent',
-                      transition: 'all 0.2s',
-                      position: 'relative',
-                      '&:hover': !isDisabled && !loading ? { bgcolor: currentChoice === 'Time B' ? `${selectedGold}25` : 'rgba(255,255,255,0.02)' } : {}
-                    }}
-                  >
-                    {currentChoice === 'Time B' && (
-                      <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: selectedGold }} />
-                    )}
-                    <Avatar
-                      src={getFlagUrl(match.away_team, 80)}
-                      sx={{ width: 40, height: 40, mx: 'auto', mb: 1.5, border: currentChoice === 'Time B' ? `2px solid ${selectedGold}` : '1px solid rgba(255,255,255,0.1)' }}
-                    >
-                      {match.away_team.charAt(0)}
-                    </Avatar>
-                    <Typography sx={{ color: currentChoice === 'Time B' ? selectedGold : '#fff', fontWeight: 700, fontSize: 13 }}>
-                      {translateTeam(match.away_team)}
-                    </Typography>
-                    <Typography sx={{ color: isDisabled && currentChoice !== 'Time B' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
-                      {currentChoice === 'Time B' ? 'ESCOLHIDO' : 'VENCE'}
-                    </Typography>
-                  </Box>
-                </Box>
-              )}
-
-              {isStarted && (
-                <Box sx={{ p: 1, bgcolor: currentChoice ? 'rgba(255,165,0,0.04)' : 'rgba(255,68,68,0.05)', textAlign: 'center' }}>
-                  <Typography sx={{ color: currentChoice ? 'rgba(255,165,0,0.7)' : '#ff4444', fontSize: 9, fontWeight: 800, textTransform: 'uppercase' }}>
-                    {currentChoice ? 'Jogo em andamento • Palpite registrado ✓' : 'Jogo em andamento • Você não palpitou neste jogo'}
-                  </Typography>
-                </Box>
-              )}
-            </Card>
+      {/* Matches List */}
+      {(() => {
+        const filtered = localMatches
+          .filter(m => {
+            if (filterGroup && m.group_name !== filterGroup) return false
+            if (filterDate) {
+              const d = new Date(m.match_date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' })
+              if (d !== filterDate) return false
+            }
+            return true
+          })
+          .sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())
+        if (filtered.length === 0) {
+          return (
+            <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, textAlign: 'center', py: 4 }}>
+              Nenhum jogo encontrado para este filtro.
+            </Typography>
           )
-        })}
-      </Stack>
+        }
+        return (
+          <Stack spacing={3} sx={{ alignItems: 'center' }}>
+            {filtered.map(match => {
+              const prediction = predictions.find(p => p.matchId === match.id)
+              const matchDate = new Date(match.match_date)
+              const isStarted = matchDate < new Date()
+              const currentChoice = prediction?.prediction
+
+              const selectedGold = '#C9940A'
+              const isDisabled = isStarted
+
+              return (
+                <Card key={match.id} sx={{
+                  bgcolor: 'rgba(12,12,12)',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                  transition: 'all 0.3s ease',
+                  maxWidth: 600,
+                  mx: 'auto',
+                  width: '100%',
+                  opacity: isDisabled && !currentChoice ? 0.6 : 1,
+                  '&:hover': { borderColor: isDisabled ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)' }
+                }}>
+                  {/* Top Banner with Match Info */}
+                  <Box sx={{
+                    bgcolor: 'rgba(255,255,255,0.02)',
+                    px: 2,
+                    py: 1,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    borderBottom: '1px solid rgba(255,255,255,0.05)'
+                  }}>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      {match.round !== 'group' ? match.round : `Grupo ${match.group_name}`}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {match.status === 'live' && (
+                        <Box sx={{ px: 1, bgcolor: '#ff4444', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                          <Typography sx={{ color: '#fff', fontSize: 9, fontWeight: 900 }}>AO VIVO</Typography>
+                        </Box>
+                      )}
+                      <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 700 }}>
+                        {matchDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} • {matchDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}h
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Main Selection Area */}
+                  {poolType === 'score' ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 3 }}>
+                      {/* Home Team */}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                        <Avatar
+                          src={getFlagUrl(match.home_team, 80)}
+                          sx={{ width: 48, height: 48, mb: 1, border: '1px solid rgba(255,255,255,0.1)' }}
+                        >
+                          {match.home_team.charAt(0)}
+                        </Avatar>
+                        <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14, mb: 2, textAlign: 'center' }}>
+                          {translateTeam(match.home_team)}
+                        </Typography>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          disabled={isDisabled}
+                          value={currentChoice ? currentChoice.split('-')[0] : ''}
+                          onChange={(e) => handleScoreChange(match.id, 'home', e.target.value)}
+                          style={{
+                            width: '60px',
+                            height: '60px',
+                            fontSize: '24px',
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            backgroundColor: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            borderRadius: '12px',
+                            color: '#fff',
+                            outline: 'none'
+                          }}
+                        />
+                      </Box>
+
+                      <Typography sx={{ color: 'rgba(255,255,255,0.2)', fontWeight: 900, fontSize: 20, mx: 2 }}>X</Typography>
+
+                      {/* Away Team */}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                        <Avatar
+                          src={getFlagUrl(match.away_team, 80)}
+                          sx={{ width: 48, height: 48, mb: 1, border: '1px solid rgba(255,255,255,0.1)' }}
+                        >
+                          {match.away_team.charAt(0)}
+                        </Avatar>
+                        <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14, mb: 2, textAlign: 'center' }}>
+                          {translateTeam(match.away_team)}
+                        </Typography>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          disabled={isDisabled}
+                          value={currentChoice ? currentChoice.split('-')[1] : ''}
+                          onChange={(e) => handleScoreChange(match.id, 'away', e.target.value)}
+                          style={{
+                            width: '60px',
+                            height: '60px',
+                            fontSize: '24px',
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            backgroundColor: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            borderRadius: '12px',
+                            color: '#fff',
+                            outline: 'none'
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: 'flex', alignItems: 'stretch' }}>
+                      {/* Team A Selection */}
+                      <Box
+                        onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Time A')}
+                        sx={{
+                          flex: 1,
+                          p: 2,
+                          textAlign: 'center',
+                          cursor: isDisabled ? 'default' : 'pointer',
+                          bgcolor: currentChoice === 'Time A' ? `${selectedGold}15` : 'transparent',
+                          borderRight: '1px solid rgba(255,255,255,0.05)',
+                          transition: 'all 0.2s',
+                          position: 'relative',
+                          '&:hover': !isDisabled && !loading ? { bgcolor: currentChoice === 'Time A' ? `${selectedGold}25` : 'rgba(255,255,255,0.02)' } : {}
+                        }}
+                      >
+                        {currentChoice === 'Time A' && (
+                          <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: selectedGold }} />
+                        )}
+                        <Avatar
+                          src={getFlagUrl(match.home_team, 80)}
+                          sx={{ width: 40, height: 40, mx: 'auto', mb: 1.5, border: currentChoice === 'Time A' ? `2px solid ${selectedGold}` : '1px solid rgba(255,255,255,0.1)' }}
+                        >
+                          {match.home_team.charAt(0)}
+                        </Avatar>
+                        <Typography sx={{ color: currentChoice === 'Time A' ? selectedGold : '#fff', fontWeight: 700, fontSize: 13 }}>
+                          {translateTeam(match.home_team)}
+                        </Typography>
+                        <Typography sx={{ color: isDisabled && currentChoice !== 'Time A' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
+                          {currentChoice === 'Time A' ? 'ESCOLHIDO' : 'VENCE'}
+                        </Typography>
+                      </Box>
+
+                      {/* Draw Selection */}
+                      <Box
+                        onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Empate')}
+                        sx={{
+                          flex: 0.6,
+                          p: 2,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          textAlign: 'center',
+                          cursor: isDisabled ? 'default' : 'pointer',
+                          bgcolor: currentChoice === 'Empate' ? 'rgba(255,255,255,0.08)' : 'transparent',
+                          borderRight: '1px solid rgba(255,255,255,0.05)',
+                          transition: 'all 0.2s',
+                          position: 'relative',
+                          '&:hover': !isDisabled && !loading ? { bgcolor: currentChoice === 'Empate' ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.02)' } : {}
+                        }}
+                      >
+                        {currentChoice === 'Empate' && (
+                          <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: 'rgba(255,255,255,0.4)' }} />
+                        )}
+                        <Typography sx={{
+                          color: currentChoice === 'Empate' ? '#fff' : 'rgba(255,255,255,0.2)',
+                          fontWeight: 900,
+                          fontSize: 18,
+                          letterSpacing: '1px'
+                        }}>
+                          {match.home_score !== null ? `${match.home_score} x ${match.away_score}` : 'X'}
+                        </Typography>
+                        <Typography sx={{
+                          color: currentChoice === 'Empate' ? '#fff' : 'rgba(255,255,255,0.2)',
+                          fontSize: 9,
+                          fontWeight: 800,
+                          mt: 0.5
+                        }}>
+                          EMPATE
+                        </Typography>
+                      </Box>
+
+                      {/* Team B Selection */}
+                      <Box
+                        onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Time B')}
+                        sx={{
+                          flex: 1,
+                          p: 2,
+                          textAlign: 'center',
+                          cursor: isDisabled ? 'default' : 'pointer',
+                          bgcolor: currentChoice === 'Time B' ? `${selectedGold}15` : 'transparent',
+                          transition: 'all 0.2s',
+                          position: 'relative',
+                          '&:hover': !isDisabled && !loading ? { bgcolor: currentChoice === 'Time B' ? `${selectedGold}25` : 'rgba(255,255,255,0.02)' } : {}
+                        }}
+                      >
+                        {currentChoice === 'Time B' && (
+                          <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: selectedGold }} />
+                        )}
+                        <Avatar
+                          src={getFlagUrl(match.away_team, 80)}
+                          sx={{ width: 40, height: 40, mx: 'auto', mb: 1.5, border: currentChoice === 'Time B' ? `2px solid ${selectedGold}` : '1px solid rgba(255,255,255,0.1)' }}
+                        >
+                          {match.away_team.charAt(0)}
+                        </Avatar>
+                        <Typography sx={{ color: currentChoice === 'Time B' ? selectedGold : '#fff', fontWeight: 700, fontSize: 13 }}>
+                          {translateTeam(match.away_team)}
+                        </Typography>
+                        <Typography sx={{ color: isDisabled && currentChoice !== 'Time B' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
+                          {currentChoice === 'Time B' ? 'ESCOLHIDO' : 'VENCE'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+
+                  {isStarted && (
+                    <Box sx={{ p: 1, bgcolor: currentChoice ? 'rgba(255,165,0,0.04)' : 'rgba(255,68,68,0.05)', textAlign: 'center' }}>
+                      <Typography sx={{ color: currentChoice ? 'rgba(255,165,0,0.7)' : '#ff4444', fontSize: 9, fontWeight: 800, textTransform: 'uppercase' }}>
+                        {currentChoice ? 'Jogo em andamento • Palpite registrado ✓' : 'Jogo em andamento • Você não palpitou neste jogo'}
+                      </Typography>
+                    </Box>
+                  )}
+                </Card>
+              )
+            })}
+          </Stack>
+        )
+      })()}
 
       {/* Action Button */}
       <Box sx={{
@@ -607,8 +701,8 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                 color: 'rgba(255,255,255,0.7)',
                 borderColor: 'rgba(255,255,255,0.2)',
                 fontWeight: 700,
-                px: 6,
-                py: 2,
+                px: { xs: 4, md: 6 },
+                py: { xs: 1.5, md: 2 },
                 borderRadius: '20px',
                 fontSize: 14,
                 textTransform: 'none',
@@ -630,10 +724,10 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
               bgcolor: '#C9940A',
               color: '#000',
               fontWeight: 800,
-              px: 8,
-              py: 2,
+              px: { xs: 4, md: 8 },
+              py: { xs: 1.5, md: 2 },
+              fontSize: { xs: 14, md: 16 },
               borderRadius: '20px',
-              fontSize: 16,
               textTransform: 'none',
               boxShadow: '0 12px 40px rgba(201,148,10,0.4)',
               transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
@@ -883,8 +977,9 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                 bgcolor: 'rgba(201,148,10,0.9)',
                 color: '#000',
                 fontWeight: 800,
-                fontSize: 15,
-                py: 1.5,
+                px: { xs: 4, md: 8 },
+                py: { xs: 1.5, md: 2 },
+                fontSize: { xs: 14, md: 16 },
                 borderRadius: '14px',
                 textTransform: 'none',
                 boxShadow: '0 8px 30px rgba(201,148,10,0.2)',
