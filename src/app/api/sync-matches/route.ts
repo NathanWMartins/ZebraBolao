@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getMatchesAPI, getKnockoutMatchesAPI } from '@/lib/wc2026'
+import { getMatchesAPI, getKnockoutMatchesAPI, checkAndReserveApiCalls } from '@/lib/wc2026'
 import { createAdminClient } from '@/lib/supabase-admin'
 import type { WC2026MatchAPI } from '@/lib/wc2026'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -118,6 +118,9 @@ export async function GET(request: Request) {
   try {
     const supabaseAdmin = createAdminClient()
 
+    // Reserva 1 chamada para group; se fase de grupos acabou, reserva +6 para knockout
+    // Verificamos primeiro com 1 — se passar, buscamos group e decidimos se precisamos de mais
+    await checkAndReserveApiCalls(1)
     const groupApiMatches = await getMatchesAPI('group')
     const groupCount = await upsertMatches(supabaseAdmin, groupApiMatches)
 
@@ -125,6 +128,7 @@ export async function GET(request: Request) {
 
     let knockoutCount = 0
     if (allGroupFinished) {
+      await checkAndReserveApiCalls(6) // 6 rounds de knockout
       const knockoutApiMatches = await getKnockoutMatchesAPI()
       knockoutCount = await upsertMatches(supabaseAdmin, knockoutApiMatches)
     }
@@ -190,6 +194,10 @@ export async function GET(request: Request) {
       poolsScored,
     })
   } catch (err: any) {
+    if (err.message?.startsWith('API_LIMIT_EXCEEDED')) {
+      console.warn('Sync skipped:', err.message)
+      return NextResponse.json({ skipped: true, reason: err.message }, { status: 429 })
+    }
     console.error('Sync error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }

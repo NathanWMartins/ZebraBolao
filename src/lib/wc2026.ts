@@ -3,8 +3,41 @@
  * A chave é lida do servidor via env — nunca exposta no client bundle.
  */
 
+import { createAdminClient } from '@/lib/supabase-admin'
+
 const BASE_URL = process.env.WC2026_API_URL!
 const API_KEY = process.env.WC2026_API_KEY!
+const DAILY_LIMIT = Number(process.env.WC2026_API_DAILY_LIMIT ?? 95)
+
+// ────────────────────────────────────────────────
+// Contador diário de uso da API (tabela api_usage)
+// Cada dia tem sua própria linha — sem necessidade de reset manual.
+// ────────────────────────────────────────────────
+
+async function incrementAndCheckUsage(calls: number): Promise<{ allowed: boolean; used: number }> {
+  const supabase = createAdminClient()
+  const today = new Date().toISOString().slice(0, 10) // 'YYYY-MM-DD'
+
+  // Busca o registro de hoje
+  const { data: existing } = await supabase
+    .from('api_usage')
+    .select('count')
+    .eq('date', today)
+    .maybeSingle()
+
+  const current = existing?.count ?? 0
+
+  if (current + calls > DAILY_LIMIT) {
+    return { allowed: false, used: current }
+  }
+
+  // Upsert: incrementa o contador
+  await supabase
+    .from('api_usage')
+    .upsert({ date: today, count: current + calls }, { onConflict: 'date' })
+
+  return { allowed: true, used: current + calls }
+}
 
 async function wc2026Fetch<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -57,7 +90,7 @@ export function getTeams() {
   return wc2026Fetch<any[]>('/teams')
 }
 
-export function getMatchesAPI(round?: string) {
+export async function getMatchesAPI(round?: string): Promise<WC2026MatchAPI[]> {
   const query = round ? `?round=${round}` : ''
   return wc2026Fetch<WC2026MatchAPI[]>(`/matches${query}`)
 }
@@ -70,4 +103,23 @@ export async function getKnockoutMatchesAPI(): Promise<WC2026MatchAPI[]> {
     KNOCKOUT_ROUNDS.map((round) => getMatchesAPI(round))
   )
   return results.flat()
+}
+
+// ────────────────────────────────────────────────
+// Wrapper com proteção de limite diário
+// Chamado pelo sync-matches antes de qualquer fetch
+// ────────────────────────────────────────────────
+
+/**
+ * Verifica o limite diário e faz as chamadas necessárias.
+ * @param callCount quantas requisições serão feitas (group=1, knockout=6)
+ * @throws Error se o limite diário foi atingido
+ */
+export async function checkAndReserveApiCalls(callCount: number): Promise<void> {
+  const { allowed, used } = await incrementAndCheckUsage(callCount)
+  if (!allowed) {
+    throw new Error(
+      `API_LIMIT_EXCEEDED: limite diário de ${DAILY_LIMIT} requisições atingido (usado: ${used})`
+    )
+  }
 }
