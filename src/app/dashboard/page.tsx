@@ -34,15 +34,30 @@ export default async function DashboardPage() {
     targetDay = '2026-06-11'
   }
 
+  // Janela: início do dia atual até fim do dia seguinte (48h)
   const targetDateObj = new Date(`${targetDay}T00:00:00-03:00`)
-  const nextDateObj = new Date(targetDateObj.getTime() + 86400000)
+  const twoDaysLaterObj = new Date(targetDateObj.getTime() + 2 * 86400000)
 
-  const { data: matches } = await supabase
+  // Busca jogos de hoje + amanhã
+  const { data: scheduledMatches } = await supabase
     .from('matches')
     .select('*')
     .gte('match_date', targetDateObj.toISOString())
-    .lt('match_date', nextDateObj.toISOString())
+    .lt('match_date', twoDaysLaterObj.toISOString())
     .order('match_date', { ascending: true })
+
+  // Busca jogos ao vivo que podem ter ficado de fora (ex: jogo de 23h que passou da meia-noite)
+  const { data: liveMatches } = await supabase
+    .from('matches')
+    .select('*')
+    .in('status', ['live', 'in_play', 'playing', 'halftime', 'delayed'])
+    .order('match_date', { ascending: true })
+
+  // Merge: ao vivo primeiro, depois agendados (sem duplicatas)
+  const scheduledIds = new Set((scheduledMatches ?? []).map((m: any) => m.id))
+  const extraLive = (liveMatches ?? []).filter((m: any) => !scheduledIds.has(m.id))
+  const matches = [...extraLive, ...(scheduledMatches ?? [])]
+    .sort((a: any, b: any) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())
 
   const { data: topScorers } = await supabase
     .from('player_stats')

@@ -72,6 +72,52 @@ export async function addPlayerStat(playerName: string, team: string, goals: num
   revalidatePath('/dashboard')
 }
 
+export async function addTeamCard(team: string, cardType: 'yellow' | 'red') {
+  if (!team || typeof team !== 'string' || team.length > 100) throw new Error('Seleção inválida')
+  if (cardType !== 'yellow' && cardType !== 'red') throw new Error('Tipo de cartão inválido')
+
+  const supabase = await checkAdmin()
+  const field = cardType === 'yellow' ? 'yellow_cards' : 'red_cards'
+
+  const { data: existing } = await supabase.from('team_stats')
+    .select('*')
+    .eq('team', team)
+    .single()
+
+  if (existing) {
+    await supabase.from('team_stats')
+      .update({ [field]: (existing as any)[field] + 1 })
+      .eq('team', team)
+  } else {
+    await supabase.from('team_stats').insert({
+      team,
+      yellow_cards: cardType === 'yellow' ? 1 : 0,
+      red_cards: cardType === 'red' ? 1 : 0,
+    })
+  }
+  revalidatePath('/dashboard')
+}
+
+export async function decrementTeamCard(team: string, cardType: 'yellow' | 'red') {
+  if (!team || typeof team !== 'string' || team.length > 100) throw new Error('Seleção inválida')
+  if (cardType !== 'yellow' && cardType !== 'red') throw new Error('Tipo de cartão inválido')
+
+  const supabase = await checkAdmin()
+  const field = cardType === 'yellow' ? 'yellow_cards' : 'red_cards'
+
+  const { data: existing } = await supabase.from('team_stats')
+    .select('*')
+    .eq('team', team)
+    .single()
+
+  if (existing && (existing as any)[field] > 0) {
+    await supabase.from('team_stats')
+      .update({ [field]: (existing as any)[field] - 1 })
+      .eq('team', team)
+    revalidatePath('/dashboard')
+  }
+}
+
 export async function updateMatch(id: string, status: string, homeScore: number | null, awayScore: number | null) {
   const supabase = await checkAdmin()
 

@@ -21,5 +21,10 @@ export default async function AdminPage() {
         .select('*')
         .order('goals', { ascending: false })
 
-    return <AdminClient matches={matches ?? []} playerStats={playerStats ?? []} />
+    const { data: teamStats } = await supabase
+        .from('team_stats')
+        .select('*')
+        .order('yellow_cards', { ascending: false })
+
+    return <AdminClient matches={matches ?? []} playerStats={playerStats ?? []} teamStats={teamStats ?? []} />
 }

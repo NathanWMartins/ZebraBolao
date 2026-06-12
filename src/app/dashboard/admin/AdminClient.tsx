@@ -7,11 +7,12 @@ import {
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import Link from 'next/link'
-import { updateMatch, incrementStat, decrementStat, addPlayerStat, calculateScoresForMatch } from '../admin-actions'
+import { updateMatch, incrementStat, decrementStat, addPlayerStat, calculateScoresForMatch, addTeamCard, decrementTeamCard } from '../admin-actions'
 import { translateTeam } from '@/lib/teamTranslations'
 import { getFlagUrl } from '@/lib/teamFlags'
 import TeamFlag from '@/app/components/TeamFlag'
 import { PLAYERS } from '@/lib/players'
+import { TEAMS } from '@/lib/teams'
 
 interface Match {
     id: string
@@ -33,7 +34,23 @@ interface PlayerStat {
     assists: number
 }
 
-export default function AdminClient({ matches, playerStats: initialStats }: { matches: Match[], playerStats: PlayerStat[] }) {
+interface TeamStat {
+    team: string
+    yellow_cards: number
+    red_cards: number
+}
+
+type StatsSubTab = 'scorers' | 'assists' | 'cards'
+
+export default function AdminClient({
+    matches,
+    playerStats: initialStats,
+    teamStats: initialTeamStats,
+}: {
+    matches: Match[]
+    playerStats: PlayerStat[]
+    teamStats: TeamStat[]
+}) {
     const [matchStates, setMatchStates] = useState<Record<string, { status: string, home_score: string, away_score: string }>>(
         () => Object.fromEntries(matches.map(m => [m.id, {
             status: m.status,
@@ -45,11 +62,22 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
     const [matchFeedback, setMatchFeedback] = useState<Record<string, { ok: boolean, msg: string }>>({})
     const [calculatingMatch, setCalculatingMatch] = useState<string | null>(null)
     const [calcResult, setCalcResult] = useState<Record<string, { ok: boolean, msg: string }>>({})
+
+    // Player stats
     const [playerStats, setPlayerStats] = useState(initialStats)
     const [newPlayer, setNewPlayer] = useState<{ player: typeof PLAYERS[0] | null, goals: string, assists: string }>({ player: null, goals: '0', assists: '0' })
     const [addingPlayer, setAddingPlayer] = useState(false)
     const [addPlayerFeedback, setAddPlayerFeedback] = useState<{ ok: boolean, msg: string } | null>(null)
+
+    // Team cards stats
+    const [teamStats, setTeamStats] = useState<TeamStat[]>(initialTeamStats)
+    const [selectedTeam, setSelectedTeam] = useState<string>('')
+    const [addingCard, setAddingCard] = useState(false)
+    const [addCardFeedback, setAddCardFeedback] = useState<{ ok: boolean, msg: string } | null>(null)
+
+    // Navigation
     const [section, setSection] = useState<'matches' | 'stats'>('matches')
+    const [statsSubTab, setStatsSubTab] = useState<StatsSubTab>('scorers')
 
     const handleCalculateScores = async (id: string) => {
         setCalculatingMatch(id)
@@ -105,6 +133,56 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
         }
     }
 
+    const handleAddCard = async (team: string, cardType: 'yellow' | 'red') => {
+        if (!team) return
+        setAddingCard(true)
+        setAddCardFeedback(null)
+        try {
+            await addTeamCard(team, cardType)
+            setTeamStats(prev => {
+                const existing = prev.find(t => t.team === team)
+                if (existing) {
+                    return prev.map(t => t.team === team
+                        ? {
+                            ...t,
+                            yellow_cards: cardType === 'yellow' ? t.yellow_cards + 1 : t.yellow_cards,
+                            red_cards: cardType === 'red' ? t.red_cards + 1 : t.red_cards,
+                        }
+                        : t
+                    )
+                }
+                return [...prev, { team, yellow_cards: cardType === 'yellow' ? 1 : 0, red_cards: cardType === 'red' ? 1 : 0 }]
+            })
+            setAddCardFeedback({ ok: true, msg: `Cartão ${cardType === 'yellow' ? 'amarelo' : 'vermelho'} adicionado` })
+        } catch (e: any) {
+            setAddCardFeedback({ ok: false, msg: e.message })
+        } finally {
+            setAddingCard(false)
+        }
+    }
+
+    const handleDecrementCard = async (team: string, cardType: 'yellow' | 'red') => {
+        await decrementTeamCard(team, cardType)
+        setTeamStats(prev => prev.map(t => t.team === team
+            ? {
+                ...t,
+                yellow_cards: cardType === 'yellow' ? Math.max(0, t.yellow_cards - 1) : t.yellow_cards,
+                red_cards: cardType === 'red' ? Math.max(0, t.red_cards - 1) : t.red_cards,
+            }
+            : t
+        ))
+    }
+
+    const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => b.goals - a.goals)
+    const assistsSorted = [...playerStats].filter(p => p.assists > 0).sort((a, b) => b.assists - a.assists)
+    const cardsSorted = [...teamStats].sort((a, b) => (b.yellow_cards + b.red_cards * 2) - (a.yellow_cards + a.red_cards * 2))
+
+    const subTabLabel: Record<StatsSubTab, string> = {
+        scorers: 'Artilheiros',
+        assists: 'Assistentes',
+        cards: 'Cartões',
+    }
+
     return (
         <Box sx={{ pb: 10, px: { xs: 2, md: 4 }, maxWidth: 900, mx: 'auto' }}>
             <Box sx={{ pt: 2, pb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -125,7 +203,7 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
                         bgcolor: section === s ? 'rgba(201,148,10,0.12)' : 'transparent',
                     }}>
                         <Typography sx={{ color: section === s ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: 700 }}>
-                            {s === 'matches' ? 'Jogos' : 'Artilheiros & Assists'}
+                            {s === 'matches' ? 'Jogos' : 'Estatísticas'}
                         </Typography>
                     </Box>
                 ))}
@@ -222,72 +300,237 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
             {/* Stats */}
             {section === 'stats' && (
                 <Box>
-                    <Stack spacing={1.5} sx={{ mb: 4 }}>
-                        {playerStats.map(p => (
-                            <Card key={p.id} sx={{ bgcolor: 'rgba(12,12,12)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', p: 2 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                    <Avatar src={getFlagUrl(p.team, 40)} sx={{ width: 28, height: 28 }} />
-                                    <Box sx={{ flex: 1 }}>
-                                        <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>{p.player_name}</Typography>
-                                        <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{translateTeam(p.team)}</Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, mr: 0.5 }}>⚽</Typography>
-                                        <IconButton size="small" onClick={() => handleStat(p.id, 'goals', -1)} sx={{ color: '#fff', p: 0.3 }}>−</IconButton>
-                                        <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{p.goals}</Typography>
-                                        <IconButton size="small" onClick={() => handleStat(p.id, 'goals', 1)} sx={{ color: '#fff', p: 0.3 }}>+</IconButton>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>
-                                        <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, mr: 0.5 }}>🅰️</Typography>
-                                        <IconButton size="small" onClick={() => handleStat(p.id, 'assists', -1)} sx={{ color: '#fff', p: 0.3 }}>−</IconButton>
-                                        <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{p.assists}</Typography>
-                                        <IconButton size="small" onClick={() => handleStat(p.id, 'assists', 1)} sx={{ color: '#fff', p: 0.3 }}>+</IconButton>
-                                    </Box>
-                                </Box>
-                            </Card>
+                    {/* Stats sub-tabs */}
+                    <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
+                        {(['scorers', 'assists', 'cards'] as StatsSubTab[]).map(t => (
+                            <Box key={t} onClick={() => setStatsSubTab(t)} sx={{
+                                px: 2, py: 0.6, borderRadius: '16px', cursor: 'pointer', border: '1px solid',
+                                borderColor: statsSubTab === t ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.08)',
+                                bgcolor: statsSubTab === t ? 'rgba(255,255,255,0.08)' : 'transparent',
+                            }}>
+                                <Typography sx={{ color: statsSubTab === t ? '#fff' : 'rgba(255,255,255,0.35)', fontSize: 12, fontWeight: 700 }}>
+                                    {subTabLabel[t]}
+                                </Typography>
+                            </Box>
                         ))}
-                    </Stack>
-
-                    <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 3 }} />
-                    <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', mb: 2 }}>Adicionar jogador</Typography>
-                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-                        <Autocomplete
-                            options={PLAYERS}
-                            getOptionLabel={o => o.name}
-                            value={newPlayer.player}
-                            onChange={(_, val) => setNewPlayer(p => ({ ...p, player: val }))}
-                            sx={{ flex: 1, minWidth: 200 }}
-                            slotProps={{ paper: { sx: { bgcolor: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', '& .MuiAutocomplete-option': { '&:hover': { bgcolor: 'rgba(201,148,10,0.1)' } } } } }}
-                            renderOption={(props, option, { index }) => {
-                                const { key, ...rest } = props as any
-                                return (
-                                    <Box key={`${option.name}-${option.team}-${index}`} component="li" {...rest} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1, px: 1.5 }}>
-                                        <TeamFlag teamName={option.team} size={20} />
-                                        <Box>
-                                            <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{option.name}</Typography>
-                                            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{translateTeam(option.team)}</Typography>
-                                        </Box>
-                                    </Box>
-                                )
-                            }}
-                            renderInput={params => (
-                                <TextField {...params} placeholder="Buscar jogador..." size="small"
-                                    sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', input: { color: '#fff' } }} />
-                            )}
-                        />
-                        <TextField value={newPlayer.goals} onChange={e => setNewPlayer(p => ({ ...p, goals: e.target.value }))} placeholder="Gols" size="small" type="number"
-                            slotProps={{ htmlInput: { style: { color: '#fff', textAlign: 'center' } } }} sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', width: 80 }} />
-                        <TextField value={newPlayer.assists} onChange={e => setNewPlayer(p => ({ ...p, assists: e.target.value }))} placeholder="Assists" size="small" type="number"
-                            slotProps={{ htmlInput: { style: { color: '#fff', textAlign: 'center' } } }} sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', width: 80 }} />
-                        <Button onClick={handleAddPlayer} disabled={addingPlayer || !newPlayer.player}
-                            sx={{ bgcolor: '#C9940A', color: '#000', fontWeight: 700, fontSize: 13, px: 3, borderRadius: '10px', '&:hover': { bgcolor: '#E6AC10' }, '&.Mui-disabled': { bgcolor: 'rgba(201,148,10,0.3)' } }}>
-                            {addingPlayer ? <CircularProgress size={16} color="inherit" /> : 'Adicionar'}
-                        </Button>
                     </Box>
-                    {addPlayerFeedback && (
-                        <Typography sx={{ fontSize: 12, mt: 1.5, color: addPlayerFeedback.ok ? '#4caf50' : '#ff6b6b' }}>
-                            {addPlayerFeedback.ok ? '✓' : '✗'} {addPlayerFeedback.msg}
-                        </Typography>
+
+                    {/* Artilheiros */}
+                    {statsSubTab === 'scorers' && (
+                        <Box>
+                            <Stack spacing={1.5} sx={{ mb: 4 }}>
+                                {scorersSorted.length === 0 && (
+                                    <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>Nenhum artilheiro registrado ainda.</Typography>
+                                )}
+                                {scorersSorted.map(p => (
+                                    <Card key={p.id} sx={{ bgcolor: 'rgba(12,12,12)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', p: 2 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                            <Avatar src={getFlagUrl(p.team, 40)} sx={{ width: 28, height: 28 }} />
+                                            <Box sx={{ flex: 1 }}>
+                                                <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>{p.player_name}</Typography>
+                                                <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{translateTeam(p.team)}</Typography>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, mr: 0.5 }}>⚽</Typography>
+                                                <IconButton size="small" onClick={() => handleStat(p.id, 'goals', -1)} sx={{ color: '#fff', p: 0.3 }}>−</IconButton>
+                                                <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{p.goals}</Typography>
+                                                <IconButton size="small" onClick={() => handleStat(p.id, 'goals', 1)} sx={{ color: '#fff', p: 0.3 }}>+</IconButton>
+                                            </Box>
+                                        </Box>
+                                    </Card>
+                                ))}
+                            </Stack>
+
+                            <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 3 }} />
+                            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', mb: 2 }}>Adicionar artilheiro</Typography>
+                            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                                <Autocomplete
+                                    options={PLAYERS}
+                                    getOptionLabel={o => o.name}
+                                    value={newPlayer.player}
+                                    onChange={(_, val) => setNewPlayer(p => ({ ...p, player: val }))}
+                                    sx={{ flex: 1, minWidth: 200 }}
+                                    slotProps={{ paper: { sx: { bgcolor: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', '& .MuiAutocomplete-option': { '&:hover': { bgcolor: 'rgba(201,148,10,0.1)' } } } } }}
+                                    renderOption={(props, option, { index }) => {
+                                        const { key, ...rest } = props as any
+                                        return (
+                                            <Box key={`${option.name}-${option.team}-${index}`} component="li" {...rest} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1, px: 1.5 }}>
+                                                <TeamFlag teamName={option.team} size={20} />
+                                                <Box>
+                                                    <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{option.name}</Typography>
+                                                    <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{translateTeam(option.team)}</Typography>
+                                                </Box>
+                                            </Box>
+                                        )
+                                    }}
+                                    renderInput={params => (
+                                        <TextField {...params} placeholder="Buscar jogador..." size="small"
+                                            sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', input: { color: '#fff' } }} />
+                                    )}
+                                />
+                                <TextField value={newPlayer.goals} onChange={e => setNewPlayer(p => ({ ...p, goals: e.target.value }))} placeholder="Gols" size="small" type="number"
+                                    slotProps={{ htmlInput: { style: { color: '#fff', textAlign: 'center' } } }} sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', width: 80 }} />
+                                <Button onClick={handleAddPlayer} disabled={addingPlayer || !newPlayer.player}
+                                    sx={{ bgcolor: '#C9940A', color: '#000', fontWeight: 700, fontSize: 13, px: 3, borderRadius: '10px', '&:hover': { bgcolor: '#E6AC10' }, '&.Mui-disabled': { bgcolor: 'rgba(201,148,10,0.3)' } }}>
+                                    {addingPlayer ? <CircularProgress size={16} color="inherit" /> : 'Adicionar'}
+                                </Button>
+                            </Box>
+                            {addPlayerFeedback && (
+                                <Typography sx={{ fontSize: 12, mt: 1.5, color: addPlayerFeedback.ok ? '#4caf50' : '#ff6b6b' }}>
+                                    {addPlayerFeedback.ok ? '✓' : '✗'} {addPlayerFeedback.msg}
+                                </Typography>
+                            )}
+                        </Box>
+                    )}
+
+                    {/* Assistentes */}
+                    {statsSubTab === 'assists' && (
+                        <Box>
+                            <Stack spacing={1.5} sx={{ mb: 4 }}>
+                                {assistsSorted.length === 0 && (
+                                    <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>Nenhuma assistência registrada ainda.</Typography>
+                                )}
+                                {assistsSorted.map(p => (
+                                    <Card key={p.id} sx={{ bgcolor: 'rgba(12,12,12)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', p: 2 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                            <Avatar src={getFlagUrl(p.team, 40)} sx={{ width: 28, height: 28 }} />
+                                            <Box sx={{ flex: 1 }}>
+                                                <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>{p.player_name}</Typography>
+                                                <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{translateTeam(p.team)}</Typography>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, mr: 0.5 }}>🅰️</Typography>
+                                                <IconButton size="small" onClick={() => handleStat(p.id, 'assists', -1)} sx={{ color: '#fff', p: 0.3 }}>−</IconButton>
+                                                <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{p.assists}</Typography>
+                                                <IconButton size="small" onClick={() => handleStat(p.id, 'assists', 1)} sx={{ color: '#fff', p: 0.3 }}>+</IconButton>
+                                            </Box>
+                                        </Box>
+                                    </Card>
+                                ))}
+                            </Stack>
+
+                            <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 3 }} />
+                            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', mb: 2 }}>Adicionar assistente</Typography>
+                            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                                <Autocomplete
+                                    options={PLAYERS}
+                                    getOptionLabel={o => o.name}
+                                    value={newPlayer.player}
+                                    onChange={(_, val) => setNewPlayer(p => ({ ...p, player: val }))}
+                                    sx={{ flex: 1, minWidth: 200 }}
+                                    slotProps={{ paper: { sx: { bgcolor: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', '& .MuiAutocomplete-option': { '&:hover': { bgcolor: 'rgba(201,148,10,0.1)' } } } } }}
+                                    renderOption={(props, option, { index }) => {
+                                        const { key, ...rest } = props as any
+                                        return (
+                                            <Box key={`${option.name}-${option.team}-${index}`} component="li" {...rest} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1, px: 1.5 }}>
+                                                <TeamFlag teamName={option.team} size={20} />
+                                                <Box>
+                                                    <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{option.name}</Typography>
+                                                    <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{translateTeam(option.team)}</Typography>
+                                                </Box>
+                                            </Box>
+                                        )
+                                    }}
+                                    renderInput={params => (
+                                        <TextField {...params} placeholder="Buscar jogador..." size="small"
+                                            sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', input: { color: '#fff' } }} />
+                                    )}
+                                />
+                                <TextField value={newPlayer.assists} onChange={e => setNewPlayer(p => ({ ...p, assists: e.target.value }))} placeholder="Assistências" size="small" type="number"
+                                    slotProps={{ htmlInput: { style: { color: '#fff', textAlign: 'center' } } }} sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', width: 100 }} />
+                                <Button onClick={handleAddPlayer} disabled={addingPlayer || !newPlayer.player}
+                                    sx={{ bgcolor: '#C9940A', color: '#000', fontWeight: 700, fontSize: 13, px: 3, borderRadius: '10px', '&:hover': { bgcolor: '#E6AC10' }, '&.Mui-disabled': { bgcolor: 'rgba(201,148,10,0.3)' } }}>
+                                    {addingPlayer ? <CircularProgress size={16} color="inherit" /> : 'Adicionar'}
+                                </Button>
+                            </Box>
+                            {addPlayerFeedback && (
+                                <Typography sx={{ fontSize: 12, mt: 1.5, color: addPlayerFeedback.ok ? '#4caf50' : '#ff6b6b' }}>
+                                    {addPlayerFeedback.ok ? '✓' : '✗'} {addPlayerFeedback.msg}
+                                </Typography>
+                            )}
+                        </Box>
+                    )}
+
+                    {/* Cartões */}
+                    {statsSubTab === 'cards' && (
+                        <Box>
+                            <Stack spacing={1.5} sx={{ mb: 4 }}>
+                                {cardsSorted.length === 0 && (
+                                    <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>Nenhum cartão registrado ainda.</Typography>
+                                )}
+                                {cardsSorted.map(t => (
+                                    <Card key={t.team} sx={{ bgcolor: 'rgba(12,12,12)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', p: 2 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                            <Avatar src={getFlagUrl(t.team, 40)} sx={{ width: 28, height: 28 }} />
+                                            <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700, flex: 1 }}>{translateTeam(t.team)}</Typography>
+
+                                            {/* Amarelos */}
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                <Box sx={{ width: 12, height: 16, bgcolor: '#FFD700', borderRadius: '2px', border: '1px solid rgba(0,0,0,0.3)', mr: 0.5 }} />
+                                                <IconButton size="small" onClick={() => handleDecrementCard(t.team, 'yellow')} sx={{ color: '#fff', p: 0.3 }}>−</IconButton>
+                                                <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{t.yellow_cards}</Typography>
+                                                <IconButton size="small" onClick={() => handleAddCard(t.team, 'yellow')} sx={{ color: '#fff', p: 0.3 }}>+</IconButton>
+                                            </Box>
+
+                                            {/* Vermelhos */}
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1.5 }}>
+                                                <Box sx={{ width: 12, height: 16, bgcolor: '#f44336', borderRadius: '2px', border: '1px solid rgba(0,0,0,0.3)', mr: 0.5 }} />
+                                                <IconButton size="small" onClick={() => handleDecrementCard(t.team, 'red')} sx={{ color: '#fff', p: 0.3 }}>−</IconButton>
+                                                <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{t.red_cards}</Typography>
+                                                <IconButton size="small" onClick={() => handleAddCard(t.team, 'red')} sx={{ color: '#fff', p: 0.3 }}>+</IconButton>
+                                            </Box>
+                                        </Box>
+                                    </Card>
+                                ))}
+                            </Stack>
+
+                            <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 3 }} />
+                            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', mb: 2 }}>Registrar cartão</Typography>
+                            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                                <Autocomplete
+                                    options={TEAMS}
+                                    getOptionLabel={o => translateTeam(o)}
+                                    value={selectedTeam || null}
+                                    onChange={(_, val) => setSelectedTeam(val ?? '')}
+                                    sx={{ flex: 1, minWidth: 200 }}
+                                    slotProps={{ paper: { sx: { bgcolor: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', '& .MuiAutocomplete-option': { '&:hover': { bgcolor: 'rgba(201,148,10,0.1)' } } } } }}
+                                    renderOption={(props, option, { index }) => {
+                                        const { key, ...rest } = props as any
+                                        return (
+                                            <Box key={`${option}-${index}`} component="li" {...rest} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1, px: 1.5 }}>
+                                                <TeamFlag teamName={option} size={20} />
+                                                <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{translateTeam(option)}</Typography>
+                                            </Box>
+                                        )
+                                    }}
+                                    renderInput={params => (
+                                        <TextField {...params} placeholder="Selecionar seleção..." size="small"
+                                            sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', input: { color: '#fff' } }} />
+                                    )}
+                                />
+                                <Button
+                                    onClick={() => handleAddCard(selectedTeam, 'yellow')}
+                                    disabled={addingCard || !selectedTeam}
+                                    size="small"
+                                    sx={{ bgcolor: '#c8a000', color: '#000', fontWeight: 700, fontSize: 12, px: 2, borderRadius: '8px', '&:hover': { bgcolor: '#a88800' }, '&.Mui-disabled': { bgcolor: 'rgba(200,160,0,0.3)' } }}
+                                >
+                                    {addingCard ? <CircularProgress size={14} color="inherit" /> : '🟨 Amarelo'}
+                                </Button>
+                                <Button
+                                    onClick={() => handleAddCard(selectedTeam, 'red')}
+                                    disabled={addingCard || !selectedTeam}
+                                    size="small"
+                                    sx={{ bgcolor: '#c62828', color: '#fff', fontWeight: 700, fontSize: 12, px: 2, borderRadius: '8px', '&:hover': { bgcolor: '#a31515' }, '&.Mui-disabled': { bgcolor: 'rgba(198,40,40,0.3)' } }}
+                                >
+                                    {addingCard ? <CircularProgress size={14} color="inherit" /> : '🟥 Vermelho'}
+                                </Button>
+                            </Box>
+                            {addCardFeedback && (
+                                <Typography sx={{ fontSize: 12, mt: 1.5, color: addCardFeedback.ok ? '#4caf50' : '#ff6b6b' }}>
+                                    {addCardFeedback.ok ? '✓' : '✗'} {addCardFeedback.msg}
+                                </Typography>
+                            )}
+                        </Box>
                     )}
                 </Box>
             )}
