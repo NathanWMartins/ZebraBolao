@@ -159,6 +159,8 @@ export default function AdminClient({ matches, playerStats: initialStats }: { ma
                                     >
                                         <MenuItem value="scheduled">Scheduled</MenuItem>
                                         <MenuItem value="live">Live</MenuItem>
+                                        <MenuItem value="halftime">Intervalo</MenuItem>
+                                        <MenuItem value="delayed">Atrasado</MenuItem>
                                         <MenuItem value="finished">Finished</MenuItem>
                                     </Select>
                                     <TextField

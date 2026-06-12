@@ -15,10 +15,6 @@ async function upsertMatches(supabase: ReturnType<typeof createAdminClient>, api
     status: match.status,
     home_score: match.home_score,
     away_score: match.away_score,
-    result:
-      match.home_score !== null && match.away_score !== null
-        ? `${match.home_score}-${match.away_score}`
-        : null,
     stadium: match.stadium,
     round: match.round,
     group_name: match.group_name,
@@ -47,6 +43,46 @@ export async function GET(request: Request) {
 
   try {
     const supabaseAdmin = createAdminClient()
+
+    // Verifica se há algum jogo dentro da janela ativa agora
+    // Janela = match_date até match_date + MATCH_WINDOW_MINUTES (default 120min)
+    const windowMinutes = Number(process.env.MATCH_WINDOW_MINUTES ?? 120)
+    const now = new Date()
+    const windowMs = windowMinutes * 60 * 1000
+
+    const { data: activeMatches } = await supabaseAdmin
+      .from('matches')
+      .select('id, match_date, status')
+
+    const LIVE_STATUSES = ['live', 'in_play', 'playing']
+    const PAUSE_STATUSES = ['halftime', 'delayed']
+
+    // Jogos dentro da janela de tempo OU marcados como live
+    const matchesInWindow = (activeMatches ?? []).filter((m: any) => {
+      const start = new Date(m.match_date).getTime()
+      const end = start + windowMs
+      const nowMs = now.getTime()
+      return (nowMs >= start && nowMs <= end) || LIVE_STATUSES.includes(m.status)
+    })
+
+    // Nenhum jogo na janela → pula
+    if (matchesInWindow.length === 0) {
+      return NextResponse.json({
+        skipped: true,
+        reason: 'Nenhum jogo ativo no momento.',
+        checkedAt: now.toISOString(),
+      })
+    }
+
+    // Todos os jogos na janela estão em pausa (intervalo/atrasado) → pula
+    const allPaused = matchesInWindow.every((m: any) => PAUSE_STATUSES.includes(m.status))
+    if (allPaused) {
+      return NextResponse.json({
+        skipped: true,
+        reason: `Todos os jogos ativos estão pausados (${matchesInWindow.map((m: any) => m.status).join(', ')}).`,
+        checkedAt: now.toISOString(),
+      })
+    }
 
     // Reserva 1 chamada para group; se fase de grupos acabou, reserva +6 para knockout
     // Verificamos primeiro com 1 — se passar, buscamos group e decidimos se precisamos de mais
@@ -90,7 +126,7 @@ export async function GET(request: Request) {
 
         const allFinished = poolMatches.every((m: any) => m.status === 'finished')
         const anyLive = poolMatches.some(
-          (m: any) => m.status === 'live' || m.status === 'in_play' || m.status === 'playing'
+          (m: any) => ['live', 'in_play', 'playing', 'halftime', 'delayed'].includes(m.status)
         )
 
         let newStatus = 'scheduled'
