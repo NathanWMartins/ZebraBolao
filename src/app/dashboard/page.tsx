@@ -1,6 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import DashboardClient from './dashboard-client'
 import CountdownClient from './countdown-client'
@@ -12,6 +11,7 @@ import LinkIcon from '@mui/icons-material/Link'
 import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import TeamFlag from '../components/TeamFlag'
 import { translateTeam } from '@/lib/teamTranslations'
 
@@ -98,11 +98,7 @@ export default async function DashboardPage() {
           </Typography>
         </Box>
 
-        {/* Countdown — direita */}
-        <Box sx={{
-          flexShrink: 0,
-          alignSelf: { xs: 'center', md: 'center' },
-        }}>
+        <Box sx={{ flexShrink: 0, alignSelf: { xs: 'center', md: 'center' } }}>
           <CountdownClient />
         </Box>
       </Box>
@@ -110,7 +106,7 @@ export default async function DashboardPage() {
       {/* Cards grid */}
       <Box sx={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
         gap: 2,
         mb: 4,
       }}>
@@ -122,7 +118,6 @@ export default async function DashboardPage() {
           href="/dashboard/groups/create"
           highlight
         />
-
         <ActionCard
           icon={<LinkIcon />}
           title="Entrar em grupo"
@@ -130,13 +125,20 @@ export default async function DashboardPage() {
           cta="Usar código"
           href="/dashboard/groups/join"
         />
-
         <ActionCard
           icon={<SportsSoccerIcon />}
           title="Meus Grupos"
           description="Veja os grupos que você está cadastrado e como está indo"
           cta="Ver Grupos"
           href="/dashboard/my-groups"
+        />
+        <ActionCard
+          icon={<EmojiEventsIcon />}
+          title="Ranking Geral"
+          description="Dispute com todos os jogadores da plataforma. Seu melhor bolão conta."
+          cta="Ver Ranking"
+          href="/dashboard/ranking"
+          gold
         />
       </Box>
 
@@ -201,6 +203,7 @@ function ActionCard({
   description,
   cta,
   highlight = false,
+  gold = false,
   href,
 }: {
   icon: React.ReactNode
@@ -208,12 +211,13 @@ function ActionCard({
   description: string
   cta: string
   highlight?: boolean
+  gold?: boolean
   href?: string
 }) {
+  const accentColor = gold ? '#E8C44A' : highlight ? '#C9940A' : 'rgba(255,255,255,0.5)'
+
   const content = (
     <Box sx={{
-      bgcolor: highlight ? 'rgba(201,148,10,0.07)' : 'rgba(0,0,0,0.5)',
-      border: `0.5px solid ${highlight ? 'rgba(201,148,10,0.25)' : 'rgba(255,255,255,0.08)'}`,
       borderRadius: '12px',
       p: { xs: 1.5, sm: 3 },
       display: 'flex',
@@ -221,19 +225,37 @@ function ActionCard({
       alignItems: { xs: 'center', sm: 'flex-start' },
       gap: { xs: 1.5, sm: 1.5 },
       cursor: 'pointer',
-      transition: 'border-color 0.2s, background-color 0.2s',
+      transition: 'all 0.2s',
       height: '100%',
+      position: 'relative',
+      overflow: 'hidden',
+      ...(gold ? {
+        background: 'linear-gradient(135deg, rgba(232,196,74,0.1) 0%, rgba(0,0,0,0.55) 65%)',
+        border: '1px solid rgba(232,196,74,0.4)',
+        '&:hover': {
+          background: 'linear-gradient(135deg, rgba(232,196,74,0.16) 0%, rgba(0,0,0,0.55) 65%)',
+          borderColor: 'rgba(232,196,74,0.7)',
+        },
+      } : highlight ? {
+        bgcolor: 'rgba(201,148,10,0.07)',
+        border: '0.5px solid rgba(201,148,10,0.25)',
+        '&:hover': { bgcolor: 'rgba(201,148,10,0.11)', borderColor: 'rgba(201,148,10,0.4)' },
+      } : {
+        bgcolor: 'rgba(0,0,0,0.5)',
+        border: '0.5px solid rgba(255,255,255,0.08)',
+        '&:hover': { bgcolor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.15)' },
+      }),
     }}>
       <Box sx={{
         width: { xs: 36, sm: 40 },
         height: { xs: 36, sm: 40 },
         flexShrink: 0,
         borderRadius: '10px',
-        bgcolor: highlight ? 'rgba(201,148,10,0.15)' : 'rgba(255,255,255,0.06)',
+        bgcolor: gold ? 'rgba(232,196,74,0.15)' : highlight ? 'rgba(201,148,10,0.15)' : 'rgba(255,255,255,0.06)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: highlight ? '#C9940A' : 'rgba(255,255,255,0.5)',
+        color: accentColor,
         '& svg': { fontSize: { xs: 18, sm: 22 } },
       }}>
         {icon}
@@ -241,33 +263,32 @@ function ActionCard({
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography sx={{ color: '#fff', fontWeight: 500, fontSize: { xs: 13, sm: 15 }, mb: { xs: 0, sm: 0.75 } }}>
+          <Typography sx={{
+            color: gold ? '#E8C44A' : '#fff',
+            fontWeight: gold ? 700 : 500,
+            fontSize: { xs: 13, sm: 15 },
+            mb: { xs: 0, sm: 0.75 },
+          }}>
             {title}
           </Typography>
           <Box sx={{ display: { xs: 'flex', sm: 'none' }, alignItems: 'center', gap: 0.25, flexShrink: 0 }}>
-            <Typography sx={{ fontSize: 12, color: highlight ? '#C9940A' : 'rgba(255,255,255,0.5)', fontWeight: 500 }}>
-              {cta}
-            </Typography>
-            <ArrowForwardIcon sx={{ fontSize: 12, color: highlight ? '#C9940A' : 'rgba(255,255,255,0.5)' }} />
+            <Typography sx={{ fontSize: 12, color: accentColor, fontWeight: 500 }}>{cta}</Typography>
+            <ArrowForwardIcon sx={{ fontSize: 12, color: accentColor }} />
           </Box>
         </Box>
-        <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: { xs: 11, sm: 13 }, lineHeight: 1.4, display: { xs: 'none', sm: 'block' } }}>
+        <Typography sx={{
+          color: gold ? 'rgba(232,196,74,0.5)' : 'rgba(255,255,255,0.4)',
+          fontSize: { xs: 11, sm: 13 },
+          lineHeight: 1.4,
+          display: { xs: 'none', sm: 'block' },
+        }}>
           {description}
         </Typography>
       </Box>
 
       <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-        <Typography sx={{
-          fontSize: 13,
-          color: highlight ? '#C9940A' : 'rgba(255,255,255,0.5)',
-          fontWeight: 500,
-        }}>
-          {cta}
-        </Typography>
-        <ArrowForwardIcon sx={{
-          fontSize: 14,
-          color: highlight ? '#C9940A' : 'rgba(255,255,255,0.5)',
-        }} />
+        <Typography sx={{ fontSize: 13, color: accentColor, fontWeight: 500 }}>{cta}</Typography>
+        <ArrowForwardIcon sx={{ fontSize: 14, color: accentColor }} />
       </Box>
     </Box>
   )
@@ -338,9 +359,7 @@ function MatchCard({ match }: { match: any }) {
               <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 700, color: '#C9940A' }}>
                 {match.home_score}
               </Typography>
-              <Typography sx={{ fontSize: { xs: 10, md: 12 }, color: 'rgba(255,255,255,0.3)' }}>
-                x
-              </Typography>
+              <Typography sx={{ fontSize: { xs: 10, md: 12 }, color: 'rgba(255,255,255,0.3)' }}>x</Typography>
               <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 700, color: '#C9940A' }}>
                 {match.away_score}
               </Typography>
@@ -377,21 +396,15 @@ function MatchCard({ match }: { match: any }) {
 
 function translate(match: any) {
   switch (match.status) {
-    case 'scheduled':
-      return 'Em breve'
+    case 'scheduled': return 'Em breve'
     case 'live':
     case 'in_play':
-    case 'playing':
-      return 'Ao vivo'
-    case 'halftime':
-      return 'Intervalo'
-    case 'delayed':
-      return 'Atrasado'
+    case 'playing': return 'Ao vivo'
+    case 'halftime': return 'Intervalo'
+    case 'delayed': return 'Atrasado'
     case 'finished':
     case 'completed':
-    case 'completes':
-      return 'Finalizado'
-    default:
-      return match.status || ''
+    case 'completes': return 'Finalizado'
+    default: return match.status || ''
   }
 }

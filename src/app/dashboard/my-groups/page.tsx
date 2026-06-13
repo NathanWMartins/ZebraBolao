@@ -8,6 +8,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
 import AddIcon from '@mui/icons-material/Add'
 import GroupCard from './GroupCard'
+import GlobalRanking from './GlobalRanking'
+import { getGlobalRanking } from './actions'
 
 export default async function MyGroupsPage() {
   const supabase = await createServerSupabaseClient()
@@ -17,7 +19,8 @@ export default async function MyGroupsPage() {
     redirect('/')
   }
 
-  // Fetch groups where user is a member
+  const { ranking, isParticipant, currentUserId } = await getGlobalRanking()
+
   const { data: memberships } = await supabase
     .from('group_members')
     .select(`
@@ -38,10 +41,10 @@ export default async function MyGroupsPage() {
   const groupsList = memberships?.map((m: any) => ({
     ...m.groups,
     joined_at: m.joined_at,
-  })).filter(g => g && g.id) || []
+  })).filter((g: any) => g && g.id) || []
 
   return (
-    <Box sx={{ maxWidth: 1000, mx: 'auto', mt: { xs: 2, md: 4 }, px: { xs: 3, md: 0 } }}>
+    <Box sx={{ maxWidth: 1000, mx: 'auto', mt: { xs: 2, md: 4 }, px: { xs: 3, md: 0 }, pb: 10 }}>
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center' }}>
         <Link href="/dashboard" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.6)' }}>
           <ArrowBackIcon sx={{ fontSize: 18 }} />
@@ -113,19 +116,14 @@ export default async function MyGroupsPage() {
           </Box>
         </Box>
       ) : (
-        <Box sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: 3
-        }}>
-          {groupsList.map(group => {
-            const isOwner = group.owner_id === user.id
-            return (
-              <GroupCard key={group.id} group={group} isOwner={isOwner} />
-            )
-          })}
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 3 }}>
+          {groupsList.map((group: any) => (
+            <GroupCard key={group.id} group={group} isOwner={group.owner_id === user.id} />
+          ))}
         </Box>
       )}
+
+      <GlobalRanking ranking={ranking} isParticipant={isParticipant} currentUserId={currentUserId} />
     </Box>
   )
 }
