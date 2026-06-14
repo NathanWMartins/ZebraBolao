@@ -44,6 +44,7 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
   const [matches, setMatches] = useState<Match[]>(initialMatches)
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState<'todos' | 'grupos' | 'matamata' | 'aovivo' | 'finalizados'>('todos')
+  const [activeGroup, setActiveGroup] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -74,7 +75,16 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: typeof activeTab) => {
     setActiveTab(newValue)
+    setActiveGroup(null)
   }
+
+  // Grupos únicos disponíveis (só para fase de grupos)
+  const availableGroups = useMemo(() => {
+    const groups = matches
+      .filter(m => m.round === 'group' && m.group_name)
+      .map(m => m.group_name)
+    return [...new Set(groups)].sort()
+  }, [matches])
 
   // Filtragem dos jogos com base nos filtros e na pesquisa
   const filteredMatches = useMemo(() => {
@@ -95,19 +105,21 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
       // 2. Filtro de Abas
       switch (activeTab) {
         case 'grupos':
-          return match.round === 'group'
+          if (match.round !== 'group') return false
+          if (activeGroup && match.group_name !== activeGroup) return false
+          return true
         case 'matamata':
           return match.round !== 'group'
         case 'aovivo':
           return match.status === 'live' || match.status === 'in_play' || match.status === 'playing'
         case 'finalizados':
-          return match.status === 'finished' || match.status === 'completed' || match.status === 'completes'
+          return match.status === 'completed'
         case 'todos':
         default:
           return true
       }
     })
-  }, [matches, search, activeTab])
+  }, [matches, search, activeTab, activeGroup])
 
   // Formatação de data em português
   const formatHeaderDate = (dateStr: string) => {
@@ -129,7 +141,7 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
       case 'in_play':
       case 'playing':
         return 'Ao vivo'
-      case 'finished':
+      case 'completed':
       case 'completed':
       case 'completes':
         return 'Finalizado'
@@ -147,7 +159,7 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
     })
     const matchTimeBRT = formatter.format(new Date(match.match_date))
     const isLive = match.status === 'live' || match.status === 'in_play' || match.status === 'playing'
-    const isFinished = match.status === 'finished' || match.status === 'completed' || match.status === 'completes'
+    const isCompleted = match.status === 'completed'
 
     return (
       <Card
@@ -339,6 +351,39 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
             <Tab value="finalizados" label="Finalizados" />
           </Tabs>
         </Box>
+
+        {/* Sub-filtro de grupo */}
+        {activeTab === 'grupos' && availableGroups.length > 0 && (
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Box
+              onClick={() => setActiveGroup(null)}
+              sx={{
+                px: 2, py: 0.5, borderRadius: '20px', cursor: 'pointer', border: '1px solid',
+                borderColor: activeGroup === null ? '#C9940A' : 'rgba(255,255,255,0.1)',
+                bgcolor: activeGroup === null ? 'rgba(201,148,10,0.12)' : 'transparent',
+              }}
+            >
+              <Typography sx={{ color: activeGroup === null ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>
+                Todos
+              </Typography>
+            </Box>
+            {availableGroups.map(g => (
+              <Box
+                key={g}
+                onClick={() => setActiveGroup(activeGroup === g ? null : g)}
+                sx={{
+                  px: 2, py: 0.5, borderRadius: '20px', cursor: 'pointer', border: '1px solid',
+                  borderColor: activeGroup === g ? '#C9940A' : 'rgba(255,255,255,0.1)',
+                  bgcolor: activeGroup === g ? 'rgba(201,148,10,0.12)' : 'transparent',
+                }}
+              >
+                <Typography sx={{ color: activeGroup === g ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>
+                  Grupo {g}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        )}
       </Stack>
 
       {/* Lista de Partidas com Divisores de Data */}

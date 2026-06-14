@@ -51,7 +51,7 @@ function PoolCardSkeleton() {
 function getStatusLabel(status: string) {
   switch (status) {
     case 'live': return { label: 'Ao Vivo', color: '#ff4444', bgcolor: 'rgba(255, 68, 68, 0.1)' }
-    case 'finished': return { label: 'Finalizado', color: '#63ca84', bgcolor: 'rgba(99,202,132,0.12)' }
+    case 'completed': return { label: 'Finalizado', color: '#63ca84', bgcolor: 'rgba(99,202,132,0.12)' }
     default: return { label: 'Agendado', color: 'rgba(255,255,255,0.5)', bgcolor: 'rgba(255,255,255,0.05)' }
   }
 }
@@ -74,7 +74,7 @@ export default function GroupPoolsList({
   const [isPending, startTransition] = useTransition()
 
   const predictedSet = new Set(predictedPoolIds)
-  const finishedPools = allPools.filter(p => p.status === 'finished')
+  const completedPools = allPools.filter(p => p.status === 'completed')
 
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setOptimisticTab(newValue)
@@ -114,7 +114,7 @@ export default function GroupPoolsList({
       {optimisticTab === 2 ? (
         <RankingTab
           groupId={groupId}
-          finishedPools={finishedPools}
+          completedPools={completedPools}
           allPools={allPools}
           currentUserId={currentUserId}
         />
@@ -152,7 +152,7 @@ export default function GroupPoolsList({
             const hasPredicted = predictedSet.has(pool.id)
             const totalMatches = pool.match_ids?.length ?? 0
             const predictedCount = predictionCountByPool[pool.id] ?? 0
-            const isIncomplete = hasPredicted && totalMatches > 0 && predictedCount < totalMatches && pool.status !== 'finished'
+            const isIncomplete = hasPredicted && totalMatches > 0 && predictedCount < totalMatches && pool.status !== 'completed'
             const status = getStatusLabel(pool.status)
 
             return (

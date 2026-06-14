@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import AdminClient from './AdminClient'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getSyncPaused } from '../admin-actions'
 
 export default async function AdminPage() {
     const supabase = await createServerSupabaseClient()
@@ -26,5 +27,7 @@ export default async function AdminPage() {
         .select('*')
         .order('yellow_cards', { ascending: false })
 
-    return <AdminClient matches={matches ?? []} playerStats={playerStats ?? []} teamStats={teamStats ?? []} />
+    const syncPaused = await getSyncPaused()
+
+    return <AdminClient matches={matches ?? []} playerStats={playerStats ?? []} teamStats={teamStats ?? []} syncPaused={syncPaused} />
 }

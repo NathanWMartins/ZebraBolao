@@ -3,11 +3,12 @@
 import React, { useState } from 'react'
 import {
     Box, Typography, IconButton, Card, Stack, CircularProgress,
-    Select, MenuItem, TextField, Button, Avatar, Divider, Autocomplete
+    Select, MenuItem, TextField, Button, Avatar, Divider, Autocomplete,
+    Switch, FormControlLabel
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import Link from 'next/link'
-import { updateMatch, incrementStat, decrementStat, addPlayerStat, calculateScoresForMatch, addTeamCard, decrementTeamCard } from '../admin-actions'
+import { updateMatch, incrementStat, decrementStat, addPlayerStat, calculateScoresForMatch, addTeamCard, decrementTeamCard, setSyncPaused } from '../admin-actions'
 import { translateTeam } from '@/lib/teamTranslations'
 import { getFlagUrl } from '@/lib/teamFlags'
 import TeamFlag from '@/app/components/TeamFlag'
@@ -46,10 +47,12 @@ export default function AdminClient({
     matches,
     playerStats: initialStats,
     teamStats: initialTeamStats,
+    syncPaused: initialSyncPaused,
 }: {
     matches: Match[]
     playerStats: PlayerStat[]
     teamStats: TeamStat[]
+    syncPaused: boolean
 }) {
     const [matchStates, setMatchStates] = useState<Record<string, { status: string, home_score: string, away_score: string }>>(
         () => Object.fromEntries(matches.map(m => [m.id, {
@@ -75,9 +78,34 @@ export default function AdminClient({
     const [addingCard, setAddingCard] = useState(false)
     const [addCardFeedback, setAddCardFeedback] = useState<{ ok: boolean, msg: string } | null>(null)
 
+    // Sync control
+    const [syncPaused, setSyncPausedState] = useState(initialSyncPaused)
+    const [togglingSync, setTogglingSync] = useState(false)
+
+    const handleToggleSync = async (paused: boolean) => {
+        setTogglingSync(true)
+        setSyncPausedState(paused)
+        await setSyncPaused(paused)
+        setTogglingSync(false)
+    }
+
     // Navigation
     const [section, setSection] = useState<'matches' | 'stats'>('matches')
     const [statsSubTab, setStatsSubTab] = useState<StatsSubTab>('scorers')
+    const [matchFilter, setMatchFilter] = useState<'all' | 'group' | 'knockout'>('all')
+    const [groupFilter, setGroupFilter] = useState<string | null>(null)
+
+    const availableGroups = [...new Set(matches.filter(m => m.round === 'group' && m.group_name).map(m => m.group_name))].sort()
+
+    const filteredMatches = matches.filter(m => {
+        if (matchFilter === 'group') {
+            if (m.round !== 'group') return false
+            if (groupFilter && m.group_name !== groupFilter) return false
+            return true
+        }
+        if (matchFilter === 'knockout') return m.round !== 'group'
+        return true
+    })
 
     const handleCalculateScores = async (id: string) => {
         setCalculatingMatch(id)
@@ -173,9 +201,9 @@ export default function AdminClient({
         ))
     }
 
-    const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => b.goals - a.goals)
-    const assistsSorted = [...playerStats].filter(p => p.assists > 0).sort((a, b) => b.assists - a.assists)
-    const cardsSorted = [...teamStats].sort((a, b) => (b.yellow_cards + b.red_cards * 2) - (a.yellow_cards + a.red_cards * 2))
+    const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => a.team.localeCompare(b.team) || a.player_name.localeCompare(b.player_name))
+    const assistsSorted = [...playerStats].filter(p => p.assists > 0).sort((a, b) => a.team.localeCompare(b.team) || a.player_name.localeCompare(b.player_name))
+    const cardsSorted = [...teamStats].sort((a, b) => a.team.localeCompare(b.team))
 
     const subTabLabel: Record<StatsSubTab, string> = {
         scorers: 'Artilheiros',
@@ -192,6 +220,33 @@ export default function AdminClient({
                     </IconButton>
                 </Link>
                 <Typography sx={{ color: '#fff', fontWeight: 800, fontSize: 20 }}>Admin</Typography>
+            </Box>
+
+            {/* Sync control */}
+            <Box sx={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                bgcolor: syncPaused ? 'rgba(255,68,68,0.07)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${syncPaused ? 'rgba(255,68,68,0.2)' : 'rgba(255,255,255,0.07)'}`,
+                borderRadius: '12px', px: 2, py: 1.5, mb: 3,
+            }}>
+                <Box>
+                    <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>Sync automático</Typography>
+                    <Typography sx={{ color: syncPaused ? '#ff6b6b' : 'rgba(255,255,255,0.4)', fontSize: 11 }}>
+                        {syncPaused ? 'Pausado — nenhum sync será feito' : 'Ativo — sincroniza durante os jogos'}
+                    </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {togglingSync && <CircularProgress size={14} sx={{ color: 'rgba(255,255,255,0.4)' }} />}
+                    <Switch
+                        checked={!syncPaused}
+                        onChange={e => handleToggleSync(!e.target.checked)}
+                        disabled={togglingSync}
+                        sx={{
+                            '& .MuiSwitch-switchBase.Mui-checked': { color: '#4caf50' },
+                            '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: '#4caf50' },
+                        }}
+                    />
+                </Box>
             </Box>
 
             {/* Section tabs */}
@@ -212,7 +267,33 @@ export default function AdminClient({
             {/* Matches */}
             {section === 'matches' && (
                 <Stack spacing={2}>
-                    {matches.map(match => {
+                    {/* Filtros */}
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', pb: 1 }}>
+                        {(['all', 'group', 'knockout'] as const).map(f => (
+                            <Box key={f} onClick={() => { setMatchFilter(f); setGroupFilter(null) }} sx={{
+                                px: 2, py: 0.5, borderRadius: '20px', cursor: 'pointer', border: '1px solid',
+                                borderColor: matchFilter === f ? '#C9940A' : 'rgba(255,255,255,0.1)',
+                                bgcolor: matchFilter === f ? 'rgba(201,148,10,0.12)' : 'transparent',
+                            }}>
+                                <Typography sx={{ color: matchFilter === f ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>
+                                    {f === 'all' ? 'Todos' : f === 'group' ? 'Fase de Grupos' : 'Mata-Mata'}
+                                </Typography>
+                            </Box>
+                        ))}
+                        {matchFilter === 'group' && availableGroups.map(g => (
+                            <Box key={g} onClick={() => setGroupFilter(groupFilter === g ? null : g)} sx={{
+                                px: 2, py: 0.5, borderRadius: '20px', cursor: 'pointer', border: '1px solid',
+                                borderColor: groupFilter === g ? '#C9940A' : 'rgba(255,255,255,0.1)',
+                                bgcolor: groupFilter === g ? 'rgba(201,148,10,0.12)' : 'transparent',
+                            }}>
+                                <Typography sx={{ color: groupFilter === g ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>
+                                    Grupo {g}
+                                </Typography>
+                            </Box>
+                        ))}
+                    </Box>
+
+                    {filteredMatches.map(match => {
                         const s = matchStates[match.id]
                         const saving = savingMatch === match.id
                         const date = new Date(match.match_date)
@@ -239,7 +320,7 @@ export default function AdminClient({
                                         <MenuItem value="live">Live</MenuItem>
                                         <MenuItem value="halftime">Intervalo</MenuItem>
                                         <MenuItem value="delayed">Atrasado</MenuItem>
-                                        <MenuItem value="finished">Finished</MenuItem>
+                                        <MenuItem value="completed">Completed</MenuItem>
                                     </Select>
                                     <TextField
                                         value={s.home_score}
@@ -266,7 +347,7 @@ export default function AdminClient({
                                     >
                                         {saving ? <CircularProgress size={14} color="inherit" /> : 'Salvar'}
                                     </Button>
-                                    {s.status === 'finished' && (
+                                    {s.status === 'completed' && (
                                         <Button
                                             onClick={() => handleCalculateScores(match.id)}
                                             disabled={calculatingMatch === match.id}
@@ -318,28 +399,25 @@ export default function AdminClient({
                     {/* Artilheiros */}
                     {statsSubTab === 'scorers' && (
                         <Box>
-                            <Stack spacing={1.5} sx={{ mb: 4 }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1, mb: 4 }}>
                                 {scorersSorted.length === 0 && (
                                     <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>Nenhum artilheiro registrado ainda.</Typography>
                                 )}
                                 {scorersSorted.map(p => (
-                                    <Card key={p.id} sx={{ bgcolor: 'rgba(12,12,12)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', p: 2 }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                            <Avatar src={getFlagUrl(p.team, 40)} sx={{ width: 28, height: 28 }} />
-                                            <Box sx={{ flex: 1 }}>
-                                                <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>{p.player_name}</Typography>
-                                                <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{translateTeam(p.team)}</Typography>
-                                            </Box>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, mr: 0.5 }}>⚽</Typography>
-                                                <IconButton size="small" onClick={() => handleStat(p.id, 'goals', -1)} sx={{ color: '#fff', p: 0.3 }}>−</IconButton>
-                                                <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{p.goals}</Typography>
-                                                <IconButton size="small" onClick={() => handleStat(p.id, 'goals', 1)} sx={{ color: '#fff', p: 0.3 }}>+</IconButton>
+                                    <Card key={p.id} sx={{ bgcolor: 'rgba(12,12,12)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', p: 1.5 }}>
+                                        <Typography sx={{ color: '#fff', fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mb: 1 }}>{p.player_name}</Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Avatar src={getFlagUrl(p.team, 40)} sx={{ width: 20, height: 20, flexShrink: 0 }} />
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, flexShrink: 0 }}>
+                                                <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>⚽</Typography>
+                                                <IconButton size="small" onClick={() => handleStat(p.id, 'goals', -1)} sx={{ color: '#fff', p: 0.2, fontSize: 14 }}>−</IconButton>
+                                                <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700, minWidth: 18, textAlign: 'center' }}>{p.goals}</Typography>
+                                                <IconButton size="small" onClick={() => handleStat(p.id, 'goals', 1)} sx={{ color: '#fff', p: 0.2, fontSize: 14 }}>+</IconButton>
                                             </Box>
                                         </Box>
                                     </Card>
                                 ))}
-                            </Stack>
+                            </Box>
 
                             <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 3 }} />
                             <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', mb: 2 }}>Adicionar artilheiro</Typography>
@@ -386,28 +464,25 @@ export default function AdminClient({
                     {/* Assistentes */}
                     {statsSubTab === 'assists' && (
                         <Box>
-                            <Stack spacing={1.5} sx={{ mb: 4 }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1, mb: 4 }}>
                                 {assistsSorted.length === 0 && (
                                     <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>Nenhuma assistência registrada ainda.</Typography>
                                 )}
                                 {assistsSorted.map(p => (
-                                    <Card key={p.id} sx={{ bgcolor: 'rgba(12,12,12)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', p: 2 }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                            <Avatar src={getFlagUrl(p.team, 40)} sx={{ width: 28, height: 28 }} />
-                                            <Box sx={{ flex: 1 }}>
-                                                <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>{p.player_name}</Typography>
-                                                <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{translateTeam(p.team)}</Typography>
-                                            </Box>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, mr: 0.5 }}>🅰️</Typography>
-                                                <IconButton size="small" onClick={() => handleStat(p.id, 'assists', -1)} sx={{ color: '#fff', p: 0.3 }}>−</IconButton>
-                                                <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{p.assists}</Typography>
-                                                <IconButton size="small" onClick={() => handleStat(p.id, 'assists', 1)} sx={{ color: '#fff', p: 0.3 }}>+</IconButton>
+                                    <Card key={p.id} sx={{ bgcolor: 'rgba(12,12,12)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', p: 1.5 }}>
+                                        <Typography sx={{ color: '#fff', fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mb: 1 }}>{p.player_name}</Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Avatar src={getFlagUrl(p.team, 40)} sx={{ width: 20, height: 20, flexShrink: 0 }} />
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, flexShrink: 0 }}>
+                                                <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>🅰️</Typography>
+                                                <IconButton size="small" onClick={() => handleStat(p.id, 'assists', -1)} sx={{ color: '#fff', p: 0.2, fontSize: 14 }}>−</IconButton>
+                                                <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700, minWidth: 18, textAlign: 'center' }}>{p.assists}</Typography>
+                                                <IconButton size="small" onClick={() => handleStat(p.id, 'assists', 1)} sx={{ color: '#fff', p: 0.2, fontSize: 14 }}>+</IconButton>
                                             </Box>
                                         </Box>
                                     </Card>
                                 ))}
-                            </Stack>
+                            </Box>
 
                             <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 3 }} />
                             <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', mb: 2 }}>Adicionar assistente</Typography>
@@ -454,35 +529,35 @@ export default function AdminClient({
                     {/* Cartões */}
                     {statsSubTab === 'cards' && (
                         <Box>
-                            <Stack spacing={1.5} sx={{ mb: 4 }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1, mb: 4 }}>
                                 {cardsSorted.length === 0 && (
                                     <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>Nenhum cartão registrado ainda.</Typography>
                                 )}
                                 {cardsSorted.map(t => (
-                                    <Card key={t.team} sx={{ bgcolor: 'rgba(12,12,12)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', p: 2 }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                            <Avatar src={getFlagUrl(t.team, 40)} sx={{ width: 28, height: 28 }} />
-                                            <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700, flex: 1 }}>{translateTeam(t.team)}</Typography>
-
+                                    <Card key={t.team} sx={{ bgcolor: 'rgba(12,12,12)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', p: 1.5 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                            <Avatar src={getFlagUrl(t.team, 40)} sx={{ width: 20, height: 20, flexShrink: 0 }} />
+                                            <Typography sx={{ color: '#fff', fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{translateTeam(t.team)}</Typography>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                             {/* Amarelos */}
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <Box sx={{ width: 12, height: 16, bgcolor: '#FFD700', borderRadius: '2px', border: '1px solid rgba(0,0,0,0.3)', mr: 0.5 }} />
-                                                <IconButton size="small" onClick={() => handleDecrementCard(t.team, 'yellow')} sx={{ color: '#fff', p: 0.3 }}>−</IconButton>
-                                                <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{t.yellow_cards}</Typography>
-                                                <IconButton size="small" onClick={() => handleAddCard(t.team, 'yellow')} sx={{ color: '#fff', p: 0.3 }}>+</IconButton>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.2 }}>
+                                                <Box sx={{ width: 10, height: 13, bgcolor: '#FFD700', borderRadius: '2px', border: '1px solid rgba(0,0,0,0.3)' }} />
+                                                <IconButton size="small" onClick={() => handleDecrementCard(t.team, 'yellow')} sx={{ color: '#fff', p: 0.2, fontSize: 14 }}>−</IconButton>
+                                                <Typography sx={{ color: '#fff', fontSize: 12, fontWeight: 700, minWidth: 16, textAlign: 'center' }}>{t.yellow_cards}</Typography>
+                                                <IconButton size="small" onClick={() => handleAddCard(t.team, 'yellow')} sx={{ color: '#fff', p: 0.2, fontSize: 14 }}>+</IconButton>
                                             </Box>
-
                                             {/* Vermelhos */}
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1.5 }}>
-                                                <Box sx={{ width: 12, height: 16, bgcolor: '#f44336', borderRadius: '2px', border: '1px solid rgba(0,0,0,0.3)', mr: 0.5 }} />
-                                                <IconButton size="small" onClick={() => handleDecrementCard(t.team, 'red')} sx={{ color: '#fff', p: 0.3 }}>−</IconButton>
-                                                <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{t.red_cards}</Typography>
-                                                <IconButton size="small" onClick={() => handleAddCard(t.team, 'red')} sx={{ color: '#fff', p: 0.3 }}>+</IconButton>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.2, ml: 0.5 }}>
+                                                <Box sx={{ width: 10, height: 13, bgcolor: '#f44336', borderRadius: '2px', border: '1px solid rgba(0,0,0,0.3)' }} />
+                                                <IconButton size="small" onClick={() => handleDecrementCard(t.team, 'red')} sx={{ color: '#fff', p: 0.2, fontSize: 14 }}>−</IconButton>
+                                                <Typography sx={{ color: '#fff', fontSize: 12, fontWeight: 700, minWidth: 16, textAlign: 'center' }}>{t.red_cards}</Typography>
+                                                <IconButton size="small" onClick={() => handleAddCard(t.team, 'red')} sx={{ color: '#fff', p: 0.2, fontSize: 14 }}>+</IconButton>
                                             </Box>
                                         </Box>
                                     </Card>
                                 ))}
-                            </Stack>
+                            </Box>
 
                             <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 3 }} />
                             <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', mb: 2 }}>Registrar cartão</Typography>

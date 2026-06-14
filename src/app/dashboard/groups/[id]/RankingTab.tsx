@@ -24,14 +24,14 @@ interface RankingEntry {
 
 interface RankingTabProps {
   groupId: string
-  finishedPools: Pool[]
+  completedPools: Pool[]
   allPools: Pool[]
   currentUserId: string
 }
 
 const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32']
 
-export default function RankingTab({ groupId, finishedPools, allPools, currentUserId }: RankingTabProps) {
+export default function RankingTab({ groupId, completedPools: completedPools, allPools, currentUserId }: RankingTabProps) {
   const [mode, setMode] = useState<'general' | string>('general')
   const [ranking, setRanking] = useState<RankingEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -95,7 +95,7 @@ export default function RankingTab({ groupId, finishedPools, allPools, currentUs
           {allPools.map(p => (
             <ToggleButton key={p.id} value={p.id}>
               {p.name}
-              {p.status === 'finished' && (
+              {p.status === 'completed' && (
                 <Typography component="span" sx={{ ml: 0.5, fontSize: 10, color: '#00C851', opacity: 0.8 }}>✓</Typography>
               )}
             </ToggleButton>

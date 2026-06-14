@@ -307,7 +307,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
         </Box>
       </Box>
 
-      {alreadyPredicted && poolStatus !== 'finished' && (
+      {alreadyPredicted && poolStatus !== 'completed' && (
         <Paper sx={{
           bgcolor: 'rgba(201,148,10,0.05)',
           p: 2.5,
@@ -449,6 +449,8 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
               const matchDate = new Date(match.match_date)
               const isStarted = matchDate < new Date()
               const currentChoice = prediction?.prediction
+              const isCompleted = match.status === 'completed'
+              const isLive = ['live', 'in_play', 'playing', 'halftime', 'delayed'].includes(match.status)
 
               const selectedGold = '#C9940A'
               const isDisabled = isStarted
@@ -480,7 +482,12 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                       {match.round !== 'group' ? match.round : `Grupo ${match.group_name}`}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {match.status === 'live' && (
+                      {isCompleted && (
+                        <Box sx={{ px: 1, bgcolor: 'rgba(255,255,255,0.15)', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                          <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: 9, fontWeight: 900 }}>ENCERRADO</Typography>
+                        </Box>
+                      )}
+                      {!isCompleted && isLive && (
                         <Box sx={{ px: 1, bgcolor: '#ff4444', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
                           <Typography sx={{ color: '#fff', fontSize: 9, fontWeight: 900 }}>AO VIVO</Typography>
                         </Box>
@@ -670,7 +677,11 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                   {isStarted && (
                     <Box sx={{ p: 1, bgcolor: currentChoice ? 'rgba(255,165,0,0.04)' : 'rgba(255,68,68,0.05)', textAlign: 'center' }}>
                       <Typography sx={{ color: currentChoice ? 'rgba(255,165,0,0.7)' : '#ff4444', fontSize: 9, fontWeight: 800, textTransform: 'uppercase' }}>
-                        {currentChoice ? 'Jogo em andamento • Palpite registrado ✓' : 'Jogo em andamento • Você não palpitou neste jogo'}
+                        {isCompleted
+                          ? (currentChoice ? 'Jogo encerrado • Palpite registrado ✓' : 'Jogo encerrado • Você não palpitou neste jogo')
+                          : isLive
+                            ? (currentChoice ? 'Jogo em andamento • Palpite registrado ✓' : 'Jogo em andamento • Você não palpitou neste jogo')
+                            : (currentChoice ? 'Jogo finalizado • Palpite registrado ✓' : 'Jogo finalizado • Você não palpitou neste jogo')}
                       </Typography>
                     </Box>
                   )}

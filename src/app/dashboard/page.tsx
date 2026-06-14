@@ -316,7 +316,7 @@ function MatchCard({ match }: { match: any }) {
   const isLive = ['live', 'in_play', 'playing'].includes(match.status)
   const isHalftime = match.status === 'halftime'
   const isDelayed = match.status === 'delayed'
-  const isFinished = ['finished', 'completed', 'completes'].includes(match.status)
+  const isCompleted = ['completed'].includes(match.status)
 
   return (
     <Box sx={{
@@ -380,13 +380,13 @@ function MatchCard({ match }: { match: any }) {
       </Box>
 
       <Box sx={{
-        bgcolor: isLive ? 'rgba(201,10,10,0.1)' : isFinished ? 'rgba(99,202,132,0.12)' : isHalftime ? 'rgba(100,160,255,0.1)' : isDelayed ? 'rgba(255,160,50,0.1)' : 'rgba(201,148,10,0.1)',
-        color: isLive ? '#fd4040' : isFinished ? '#63ca84' : isHalftime ? '#64a0ff' : isDelayed ? '#ffa032' : '#C9940A',
+        bgcolor: isLive ? 'rgba(201,10,10,0.1)' : isCompleted ? 'rgba(99,202,132,0.12)' : isHalftime ? 'rgba(100,160,255,0.1)' : isDelayed ? 'rgba(255,160,50,0.1)' : 'rgba(201,148,10,0.1)',
+        color: isLive ? '#fd4040' : isCompleted ? '#63ca84' : isHalftime ? '#64a0ff' : isDelayed ? '#ffa032' : '#C9940A',
         px: 2,
         py: 1,
         alignSelf: { xs: 'center', md: 'auto' },
         borderRadius: '8px',
-        border: isLive ? '0.5px solid rgba(201,10,10,0.2)' : isFinished ? '0.5px solid rgba(99,202,132,0.3)' : isHalftime ? '0.5px solid rgba(100,160,255,0.2)' : isDelayed ? '0.5px solid rgba(255,160,50,0.2)' : '0.5px solid rgba(201,148,10,0.2)',
+        border: isLive ? '0.5px solid rgba(201,10,10,0.2)' : isCompleted ? '0.5px solid rgba(99,202,132,0.3)' : isHalftime ? '0.5px solid rgba(100,160,255,0.2)' : isDelayed ? '0.5px solid rgba(255,160,50,0.2)' : '0.5px solid rgba(201,148,10,0.2)',
       }}>
         <Typography sx={{ fontSize: { xs: 10, md: 13 }, fontWeight: 600 }}>{translate(match)}</Typography>
       </Box>
@@ -402,7 +402,7 @@ function translate(match: any) {
     case 'playing': return 'Ao vivo'
     case 'halftime': return 'Intervalo'
     case 'delayed': return 'Atrasado'
-    case 'finished':
+    case 'completed':
     case 'completed':
     case 'completes': return 'Finalizado'
     default: return match.status || ''

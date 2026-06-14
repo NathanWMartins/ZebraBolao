@@ -158,11 +158,11 @@ export async function calculateScoresForMatch(matchId: string): Promise<{ poolsU
       .select('id, home_score, away_score, status')
       .in('id', pool.match_ids)
 
-    const finishedMatches = (matches ?? []).filter(
-      (m: any) => m.status === 'finished' && m.home_score !== null && m.away_score !== null
+    const completedMatches = (matches ?? []).filter(
+      (m: any) => m.status === 'completed' && m.home_score !== null && m.away_score !== null
     )
 
-    if (finishedMatches.length === 0) continue
+    if (completedMatches.length === 0) continue
 
     // Busca todos os palpites do bolão
     const { data: predictions } = await supabase
@@ -175,7 +175,7 @@ export async function calculateScoresForMatch(matchId: string): Promise<{ poolsU
     // Recalcula pontos do zero por usuário
     const userPoints: Record<string, number> = {}
 
-    for (const match of finishedMatches) {
+    for (const match of completedMatches) {
       const h = match.home_score as number
       const a = match.away_score as number
       const actualResult = h > a ? 'Time A' : a > h ? 'Time B' : 'Empate'
@@ -194,7 +194,7 @@ export async function calculateScoresForMatch(matchId: string): Promise<{ poolsU
     }
 
     // Substitui os scores do bolão (delete + insert para garantir consistência)
-    const scoredMatchIds = finishedMatches.map((m: any) => m.id)
+    const scoredMatchIds = completedMatches.map((m: any) => m.id)
 
     for (const [userId, points] of Object.entries(userPoints)) {
       await supabase
@@ -214,4 +214,22 @@ export async function calculateScoresForMatch(matchId: string): Promise<{ poolsU
 
   revalidatePath('/dashboard/admin')
   return { poolsUpdated }
+}
+
+export async function getSyncPaused(): Promise<boolean> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('app_config')
+    .select('value')
+    .eq('key', 'sync_paused')
+    .single()
+  return data?.value === 'true'
+}
+
+export async function setSyncPaused(paused: boolean): Promise<void> {
+  const supabase = await checkAdmin()
+  await supabase
+    .from('app_config')
+    .upsert({ key: 'sync_paused', value: paused ? 'true' : 'false' }, { onConflict: 'key' })
+  revalidatePath('/dashboard/admin')
 }

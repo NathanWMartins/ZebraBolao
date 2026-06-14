@@ -31,6 +31,7 @@ export const TEAMS = [
   'Panama',
   'Paraguay',
   'Portugal',
+  'Qatar',
   'Saudi Arabia',
   'Scotland',
   'Senegal',

@@ -44,6 +44,17 @@ export async function GET(request: Request) {
   try {
     const supabaseAdmin = createAdminClient()
 
+    // Verifica se o sync está pausado manualmente pelo admin
+    const { data: syncConfig } = await supabaseAdmin
+      .from('app_config')
+      .select('value')
+      .eq('key', 'sync_paused')
+      .single()
+
+    if (syncConfig?.value === 'true') {
+      return NextResponse.json({ skipped: true, reason: 'Sync pausado manualmente pelo admin.' })
+    }
+
     // Verifica se há algum jogo dentro da janela ativa agora
     // Janela = match_date até match_date + MATCH_WINDOW_MINUTES (default 120min)
     const windowMinutes = Number(process.env.MATCH_WINDOW_MINUTES ?? 120)
@@ -90,10 +101,10 @@ export async function GET(request: Request) {
     const groupApiMatches = await getMatchesAPI('group')
     const groupCount = await upsertMatches(supabaseAdmin, groupApiMatches)
 
-    const allGroupFinished = groupApiMatches.every((m) => m.status === 'finished')
+    const allGroupCompleted = groupApiMatches.every((m) => m.status === 'completed')
 
     let knockoutCount = 0
-    if (allGroupFinished) {
+    if (allGroupCompleted) {
       await checkAndReserveApiCalls(6) // 6 rounds de knockout
       const knockoutApiMatches = await getKnockoutMatchesAPI()
       knockoutCount = await upsertMatches(supabaseAdmin, knockoutApiMatches)
@@ -124,14 +135,14 @@ export async function GET(request: Request) {
         const lastMatchStart = Math.max(...startTimes)
         const threeHoursAfterLast = lastMatchStart + 3 * 60 * 60 * 1000
 
-        const allFinished = poolMatches.every((m: any) => m.status === 'finished')
+        const allCompleted = poolMatches.every((m: any) => m.status === 'completed')
         const anyLive = poolMatches.some(
           (m: any) => ['live', 'in_play', 'playing', 'halftime', 'delayed'].includes(m.status)
         )
 
         let newStatus = 'scheduled'
-        if (now >= threeHoursAfterLast && allFinished) {
-          newStatus = 'finished'
+        if (now >= threeHoursAfterLast && allCompleted) {
+          newStatus = 'completed'
         } else if (now >= firstMatchStart || anyLive) {
           newStatus = 'live'
         }
@@ -151,7 +162,7 @@ export async function GET(request: Request) {
       syncedAt: new Date().toISOString(),
       groupMatchesSynced: groupCount,
       knockoutMatchesSynced: knockoutCount,
-      groupStageFinished: allGroupFinished,
+      groupStageCompleted: allGroupCompleted,
       poolsChecked: pools?.length || 0,
       poolsUpdated,
     })

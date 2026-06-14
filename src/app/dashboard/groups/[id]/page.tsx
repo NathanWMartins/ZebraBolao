@@ -82,8 +82,8 @@ export default async function GroupPage(props: {
   const allPools = pools || []
 
   const filteredPools = allPools.filter((pool: any) => {
-    if (activeTab === 'history') return pool.status === 'finished'
-    return pool.status !== 'finished'
+    if (activeTab === 'history') return pool.status === 'completed'
+    return pool.status !== 'completed'
   })
 
   const { data: userPredictions } = await supabase
