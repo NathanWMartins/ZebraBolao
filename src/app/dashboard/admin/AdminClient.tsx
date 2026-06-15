@@ -8,7 +8,7 @@ import {
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import Link from 'next/link'
-import { updateMatch, incrementStat, decrementStat, addPlayerStat, calculateScoresForMatch, addTeamCard, decrementTeamCard, setSyncPaused } from '../admin-actions'
+import { updateMatch, incrementStat, decrementStat, addPlayerStat, calculateScoresForMatch, addTeamCard, decrementTeamCard, setSyncPaused, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry } from '../admin-actions'
 import { translateTeam } from '@/lib/teamTranslations'
 import { getFlagUrl } from '@/lib/teamFlags'
 import TeamFlag from '@/app/components/TeamFlag'
@@ -41,18 +41,20 @@ interface TeamStat {
     red_cards: number
 }
 
-type StatsSubTab = 'scorers' | 'assists' | 'cards'
+type StatsSubTab = 'scorers' | 'assists' | 'cards' | 'groups'
 
 export default function AdminClient({
     matches,
     playerStats: initialStats,
     teamStats: initialTeamStats,
     syncPaused: initialSyncPaused,
+    groupStandings: initialStandings,
 }: {
     matches: Match[]
     playerStats: PlayerStat[]
     teamStats: TeamStat[]
     syncPaused: boolean
+    groupStandings: GroupStandingEntry[]
 }) {
     const [matchStates, setMatchStates] = useState<Record<string, { status: string, home_score: string, away_score: string }>>(
         () => Object.fromEntries(matches.map(m => [m.id, {
@@ -87,6 +89,37 @@ export default function AdminClient({
         setSyncPausedState(paused)
         await setSyncPaused(paused)
         setTogglingSync(false)
+    }
+
+    // Group standings
+    const [standings, setStandings] = useState<GroupStandingEntry[]>(initialStandings)
+    const [standingEdits, setStandingEdits] = useState<Record<string, GroupStandingEntry>>({})
+    const [savingStanding, setSavingStanding] = useState<string | null>(null)
+
+    const standingGroups = [...new Set(standings.map(s => s.group_name))].sort()
+
+    const getStandingKey = (s: GroupStandingEntry) => `${s.group_name}__${s.team}`
+
+    const getEditedStanding = (s: GroupStandingEntry): GroupStandingEntry =>
+        standingEdits[getStandingKey(s)] ?? s
+
+    const updateStandingField = (s: GroupStandingEntry, field: keyof GroupStandingEntry, value: string) => {
+        const key = getStandingKey(s)
+        setStandingEdits(prev => ({
+            ...prev,
+            [key]: { ...(prev[key] ?? s), [field]: field === 'group_name' || field === 'team' || field === 'id' ? value : Number(value) }
+        }))
+    }
+
+    const handleSaveStanding = async (s: GroupStandingEntry) => {
+        const key = getStandingKey(s)
+        const edited = standingEdits[key] ?? s
+        setSavingStanding(key)
+        const { id, ...rest } = edited
+        await upsertTeamStanding(rest)
+        setStandings(prev => prev.map(x => getStandingKey(x) === key ? edited : x))
+        setStandingEdits(prev => { const n = { ...prev }; delete n[key]; return n })
+        setSavingStanding(null)
     }
 
     // Navigation
@@ -209,6 +242,7 @@ export default function AdminClient({
         scorers: 'Artilheiros',
         assists: 'Assistentes',
         cards: 'Cartões',
+        groups: 'Grupos',
     }
 
     return (
@@ -383,7 +417,7 @@ export default function AdminClient({
                 <Box>
                     {/* Stats sub-tabs */}
                     <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
-                        {(['scorers', 'assists', 'cards'] as StatsSubTab[]).map(t => (
+                        {(['scorers', 'assists', 'cards', 'groups'] as StatsSubTab[]).map(t => (
                             <Box key={t} onClick={() => setStatsSubTab(t)} sx={{
                                 px: 2, py: 0.6, borderRadius: '16px', cursor: 'pointer', border: '1px solid',
                                 borderColor: statsSubTab === t ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.08)',
@@ -607,8 +641,230 @@ export default function AdminClient({
                             )}
                         </Box>
                     )}
+           
+                                {/* Grupos */}
+                    {statsSubTab === 'groups' && (
+                        <GroupStandingsAdmin
+                            standings={standings}
+                            standingGroups={standingGroups}
+                            standingEdits={standingEdits}
+                            savingStanding={savingStanding}
+                            getStandingKey={getStandingKey}
+                            getEditedStanding={getEditedStanding}
+                            updateStandingField={updateStandingField}
+                            handleSaveStanding={handleSaveStanding}
+                            setStandings={setStandings}
+                        />
+                    )}
                 </Box>
             )}
+        </Box>
+    )
+}
+
+// ─── Componente de Grupos com Drag-and-Drop ───────────────────────────────────
+
+interface GroupStandingsAdminProps {
+    standings: GroupStandingEntry[]
+    standingGroups: string[]
+    standingEdits: Record<string, GroupStandingEntry>
+    savingStanding: string | null
+    getStandingKey: (s: GroupStandingEntry) => string
+    getEditedStanding: (s: GroupStandingEntry) => GroupStandingEntry
+    updateStandingField: (s: GroupStandingEntry, field: keyof GroupStandingEntry, value: string) => void
+    handleSaveStanding: (s: GroupStandingEntry) => Promise<void>
+    setStandings: React.Dispatch<React.SetStateAction<GroupStandingEntry[]>>
+}
+
+function GroupStandingsAdmin({
+    standings, standingGroups, standingEdits, savingStanding,
+    getStandingKey, getEditedStanding, updateStandingField, handleSaveStanding, setStandings
+}: GroupStandingsAdminProps) {
+    const [dragGroup, setDragGroup] = useState<string | null>(null)
+    const [dragFrom, setDragFrom] = useState<number | null>(null)
+    const [dragOver, setDragOver] = useState<number | null>(null)
+    const [reordering, setReordering] = useState<string | null>(null)
+
+    const getGroupEntries = (g: string) =>
+        standings.filter(s => s.group_name === g).sort((a, b) => a.position - b.position)
+
+    const handleDragStart = (groupName: string, idx: number) => {
+        setDragGroup(groupName)
+        setDragFrom(idx)
+    }
+
+    const handleDrop = async (groupName: string, toIdx: number) => {
+        if (dragFrom === null || dragGroup !== groupName || dragFrom === toIdx) {
+            setDragFrom(null); setDragOver(null); setDragGroup(null)
+            return
+        }
+        const entries = getGroupEntries(groupName)
+        const reordered = [...entries]
+        const [moved] = reordered.splice(dragFrom, 1)
+        reordered.splice(toIdx, 0, moved)
+
+        const updatedPositions = reordered.map((e, i) => ({ ...e, position: i + 1 }))
+        setStandings(prev => {
+            const others = prev.filter(s => s.group_name !== groupName)
+            return [...others, ...updatedPositions].sort((a, b) =>
+                a.group_name.localeCompare(b.group_name) || a.position - b.position
+            )
+        })
+
+        setReordering(groupName)
+        await reorderGroupStandings(groupName, reordered.map(e => e.team))
+        setReordering(null)
+
+        setDragFrom(null); setDragOver(null); setDragGroup(null)
+    }
+
+    const STAT_FIELDS = [
+        { field: 'played' as const, label: 'J' },
+        { field: 'wins' as const, label: 'V' },
+        { field: 'draws' as const, label: 'E' },
+        { field: 'losses' as const, label: 'D' },
+        { field: 'goals_for' as const, label: 'GP' },
+        { field: 'goals_against' as const, label: 'GC' },
+        { field: 'points' as const, label: 'Pts' },
+    ] as const
+
+    if (standingGroups.length === 0) {
+        return (
+            <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>
+                Nenhuma classificação registrada. Execute o SQL para criar a tabela e adicionar os times.
+            </Typography>
+        )
+    }
+
+    return (
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+            {standingGroups.map(groupName => {
+                const entries = getGroupEntries(groupName)
+                return (
+                    <Box key={groupName}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                            <Typography sx={{ color: '#fff', fontWeight: 800, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                Grupo {groupName}
+                            </Typography>
+                            {reordering === groupName && <CircularProgress size={12} sx={{ color: '#C9940A' }} />}
+                        </Box>
+
+                        {/* Cabeçalho */}
+                        <Box sx={{
+                            display: 'grid',
+                            gridTemplateColumns: '24px 1fr 32px 32px 32px 32px 32px 32px 36px 48px',
+                            gap: 0,
+                            px: 1.5, py: 0.6,
+                            bgcolor: 'rgba(255,255,255,0.04)',
+                            borderRadius: '8px 8px 0 0',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            borderBottom: 'none',
+                        }}>
+                            <Box />
+                            <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 9, fontWeight: 700 }}>Seleção</Typography>
+                            {STAT_FIELDS.map(f => (
+                                <Typography key={f.field} sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 9, fontWeight: 700, textAlign: 'center' }}>{f.label}</Typography>
+                            ))}
+                            <Box />
+                        </Box>
+
+                        {/* Linhas draggable */}
+                        <Box sx={{
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            borderTop: 'none',
+                            borderRadius: '0 0 10px 10px',
+                            overflow: 'hidden',
+                        }}>
+                            {entries.map((s, i) => {
+                                const edited = getEditedStanding(s)
+                                const key = getStandingKey(s)
+                                const saving = savingStanding === key
+                                const isDraggingThis = dragGroup === groupName && dragFrom === i
+                                const isDragTarget = dragGroup === groupName && dragOver === i
+
+                                return (
+                                    <Box
+                                        key={key}
+                                        draggable
+                                        onDragStart={() => handleDragStart(groupName, i)}
+                                        onDragOver={e => { e.preventDefault(); setDragOver(i) }}
+                                        onDragLeave={() => setDragOver(null)}
+                                        onDrop={() => handleDrop(groupName, i)}
+                                        onDragEnd={() => { setDragFrom(null); setDragOver(null); setDragGroup(null) }}
+                                        sx={{
+                                            display: 'grid',
+                                            gridTemplateColumns: '24px 1fr 32px 32px 32px 32px 32px 32px 36px 48px',
+                                            gap: 0,
+                                            px: 1.5,
+                                            py: 0.75,
+                                            alignItems: 'center',
+                                            borderBottom: i < entries.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                                            bgcolor: isDragTarget
+                                                ? 'rgba(201,148,10,0.1)'
+                                                : isDraggingThis
+                                                    ? 'rgba(255,255,255,0.02)'
+                                                    : i < 2 ? 'rgba(99,202,132,0.04)' : 'transparent',
+                                            borderLeft: i < 2 && !isDragTarget ? '3px solid rgba(99,202,132,0.4)' : isDragTarget ? '3px solid rgba(201,148,10,0.6)' : '3px solid transparent',
+                                            cursor: 'grab',
+                                            opacity: isDraggingThis ? 0.4 : 1,
+                                            transition: 'background 0.1s, border-color 0.1s',
+                                        }}
+                                    >
+                                        <Typography sx={{ color: 'rgba(255,255,255,0.2)', fontSize: 14, lineHeight: 1, userSelect: 'none' }}>⠿</Typography>
+
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+                                            <TeamFlag teamName={s.team} size={20} />
+                                            <Typography sx={{ color: '#fff', fontSize: 11, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {translateTeam(s.team)}
+                                            </Typography>
+                                        </Box>
+
+                                        {STAT_FIELDS.map(f => (
+                                            <TextField
+                                                key={f.field}
+                                                value={edited[f.field] ?? 0}
+                                                onChange={e => updateStandingField(s, f.field, e.target.value)}
+                                                size="small"
+                                                type="number"
+                                                onClick={e => e.stopPropagation()}
+                                                onMouseDown={e => e.stopPropagation()}
+                                                slotProps={{
+                                                    htmlInput: {
+                                                        style: { color: '#fff', textAlign: 'center', padding: '3px 2px', fontSize: 11 },
+                                                        min: 0,
+                                                    }
+                                                }}
+                                                sx={{
+                                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' },
+                                                    '& .MuiOutlinedInput-root': { borderRadius: '4px' },
+                                                    bgcolor: 'rgba(255,255,255,0.04)',
+                                                    width: 32,
+                                                    mx: 0,
+                                                    cursor: 'text',
+                                                }}
+                                            />
+                                        ))}
+
+                                        <Button
+                                            onClick={e => { e.stopPropagation(); handleSaveStanding(s) }}
+                                            disabled={saving}
+                                            size="small"
+                                            sx={{
+                                                bgcolor: '#C9940A', color: '#000', fontWeight: 700,
+                                                fontSize: 10, px: 1, minWidth: 0, borderRadius: '6px',
+                                                '&:hover': { bgcolor: '#E6AC10' },
+                                                '&.Mui-disabled': { bgcolor: 'rgba(201,148,10,0.3)' },
+                                            }}
+                                        >
+                                            {saving ? <CircularProgress size={10} color="inherit" /> : 'OK'}
+                                        </Button>
+                                    </Box>
+                                )
+                            })}
+                        </Box>
+                    </Box>
+                )
+            })}
         </Box>
     )
 }

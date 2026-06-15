@@ -21,11 +21,13 @@ import CheckIcon from '@mui/icons-material/Check'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import PeopleIcon from '@mui/icons-material/People'
 import FilterListIcon from '@mui/icons-material/FilterList'
+import LeaderboardIcon from '@mui/icons-material/Leaderboard'
 import Link from 'next/link'
 import { savePredictions, saveSpecialPredictions } from '../../actions'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import PredictionsModal from './PredictionsModal'
+import StandingsModal from '@/app/dashboard/standings/StandingsModal'
 import { getFlagUrl } from '@/lib/teamFlags'
 import { translateTeam } from '@/lib/teamTranslations'
 import TeamFlag from '@/app/components/TeamFlag'
@@ -84,6 +86,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
   const [success, setSuccess] = useState(false)
   const [skippedWarning, setSkippedWarning] = useState<string | null>(null)
   const [showGroupPredictions, setShowGroupPredictions] = useState(false)
+  const [showStandings, setShowStandings] = useState(false)
   const [localMatches, setLocalMatches] = useState<Match[]>(matches)
   const [filterGroup, setFilterGroup] = useState<string | null>(null)
   const [filterDate, setFilterDate] = useState<string | null>(null)
@@ -282,6 +285,29 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
             </Typography>
           </Box>
 
+          <IconButton
+            onClick={() => setShowStandings(true)}
+            sx={{
+              color: '#C9940A',
+              bgcolor: 'rgba(255,255,255,0.92)',
+              borderRadius: '8px',
+              flexShrink: 0,
+              gap: 0.5,
+              px: { xs: 1, md: 2 },
+              border: '1px solid rgba(201,148,10,0.4)',
+              '&:hover': { bgcolor: '#fff', boxShadow: '0 0 12px rgba(201,148,10,0.25)' }
+            }}
+          >
+            <LeaderboardIcon sx={{ fontSize: 18, color: '#C9940A' }} />
+            <Typography sx={{
+              display: { xs: 'none', md: 'block' },
+              color: '#C9940A',
+              fontSize: 12,
+              fontWeight: 800,
+            }}>
+              Classificação
+            </Typography>
+          </IconButton>
           <IconButton
             onClick={() => setShowGroupPredictions(true)}
             sx={{
@@ -1010,6 +1036,11 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
         poolId={poolId}
         poolType={poolType}
         matches={localMatches}
+      />
+
+      <StandingsModal
+        open={showStandings}
+        onClose={() => setShowStandings(false)}
       />
     </Box>
   )

@@ -12,6 +12,7 @@ import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
+import LeaderboardIcon from '@mui/icons-material/Leaderboard'
 import TeamFlag from '../components/TeamFlag'
 import { translateTeam } from '@/lib/teamTranslations'
 
@@ -139,6 +140,13 @@ export default async function DashboardPage() {
           cta="Ver Ranking"
           href="/dashboard/ranking"
           gold
+        />
+        <ActionCard
+          icon={<LeaderboardIcon />}
+          title="Classificação"
+          description="Acompanhe a tabela de cada grupo da fase de grupos."
+          cta="Ver tabela"
+          href="/dashboard/standings"
         />
       </Box>
 

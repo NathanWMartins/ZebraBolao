@@ -233,3 +233,52 @@ export async function setSyncPaused(paused: boolean): Promise<void> {
     .upsert({ key: 'sync_paused', value: paused ? 'true' : 'false' }, { onConflict: 'key' })
   revalidatePath('/dashboard/admin')
 }
+
+export type GroupStandingEntry = {
+  id: string
+  group_name: string
+  team: string
+  position: number
+  played: number
+  points: number
+  goals_for: number
+  goals_against: number
+  wins: number
+  draws: number
+  losses: number
+}
+
+export async function getGroupStandings(): Promise<GroupStandingEntry[]> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('group_standings')
+    .select('*')
+    .order('group_name', { ascending: true })
+    .order('position', { ascending: true })
+  return (data ?? []) as GroupStandingEntry[]
+}
+
+export async function upsertTeamStanding(entry: Omit<GroupStandingEntry, 'id'>): Promise<void> {
+  const supabase = await checkAdmin()
+  await supabase
+    .from('group_standings')
+    .upsert(entry, { onConflict: 'group_name,team' })
+  revalidatePath('/dashboard/standings')
+  revalidatePath('/dashboard/admin')
+}
+
+export async function reorderGroupStandings(
+  groupName: string,
+  orderedTeams: string[]
+): Promise<void> {
+  const supabase = await checkAdmin()
+  for (let i = 0; i < orderedTeams.length; i++) {
+    await supabase
+      .from('group_standings')
+      .update({ position: i + 1 })
+      .eq('group_name', groupName)
+      .eq('team', orderedTeams[i])
+  }
+  revalidatePath('/dashboard/standings')
+  revalidatePath('/dashboard/admin')
+}
