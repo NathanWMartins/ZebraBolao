@@ -492,8 +492,14 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
           })
           .sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())
 
-        const pendingMatches = allFiltered.filter(m => m.status !== 'completed' && !(['live','in_play','playing','halftime','delayed'].includes(m.status)))
-        const finishedMatches = allFiltered.filter(m => m.status === 'completed' || ['live','in_play','playing','halftime','delayed'].includes(m.status))
+        const liveStatuses = ['live','in_play','playing','halftime','delayed']
+        const isMatchStarted = (m: Match) =>
+          m.status === 'completed' ||
+          liveStatuses.includes(m.status) ||
+          new Date(m.match_date) < new Date()
+
+        const pendingMatches = allFiltered.filter(m => !isMatchStarted(m))
+        const finishedMatches = allFiltered.filter(m => isMatchStarted(m))
           .sort((a, b) => new Date(b.match_date).getTime() - new Date(a.match_date).getTime())
 
         const finishedHits = finishedMatches.filter(m => {
@@ -527,7 +533,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                 display: 'flex', alignItems: 'center', gap: 1,
               }}>
                 <Typography sx={{ color: matchTab === 'finished' ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>
-                  Finalizados {finishedMatches.length > 0 && `(${finishedMatches.length})`}
+                  Iniciados/Finalizados {finishedMatches.length > 0 && `(${finishedMatches.length})`}
                 </Typography>
                 {finishedTotal > 0 && (
                   <Box sx={{
@@ -545,7 +551,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
 
             {filtered.length === 0 ? (
               <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, textAlign: 'center', py: 4 }}>
-                {matchTab === 'pending' ? 'Nenhum jogo aguardando palpite.' : 'Nenhum jogo finalizado ainda.'}
+                {matchTab === 'pending' ? 'Nenhum jogo aguardando palpite.' : 'Nenhum jogo iniciado ainda.'}
               </Typography>
             ) : (
           <Stack spacing={3} sx={{ alignItems: 'center' }}>
