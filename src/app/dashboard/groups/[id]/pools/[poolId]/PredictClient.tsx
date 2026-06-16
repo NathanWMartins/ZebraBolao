@@ -146,6 +146,9 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
   // Verificar se o usuário já tem palpites salvos
   const alreadyPredicted = initialPredictions.length > 0
 
+  // Tab: 'pending' | 'finished'
+  const [matchTab, setMatchTab] = useState<'pending' | 'finished'>('pending')
+
   // Inicializar estado dos palpites
   const [predictions, setPredictions] = useState<Prediction[]>(() => {
     return localMatches.map(match => {
@@ -451,7 +454,34 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
 
       {/* Matches List */}
       {(() => {
-        const filtered = localMatches
+        // Helper: calcula resultado real de um jogo
+        const getMatchResult = (match: Match): 'home' | 'away' | 'draw' | null => {
+          if (match.home_score === null || match.away_score === null) return null
+          if (match.home_score > match.away_score) return 'home'
+          if (match.away_score > match.home_score) return 'away'
+          return 'draw'
+        }
+
+        // Helper: checa se acertou
+        const checkHit = (match: Match, pred: string | null | undefined): 'hit' | 'miss' | null => {
+          if (!pred || match.status !== 'completed') return null
+          if (match.home_score === null || match.away_score === null) return null
+          const realResult = getMatchResult(match)
+          if (poolType === 'score') {
+            const [ph, pa] = pred.split('-').map(Number)
+            if (ph === match.home_score && pa === match.away_score) return 'hit'
+            const predResult = ph > pa ? 'home' : pa > ph ? 'away' : 'draw'
+            return predResult === realResult ? 'hit' : 'miss'
+          } else {
+            // palpite é 'Time A' (casa), 'Time B' (fora) ou 'Empate'
+            if (pred === 'Time A' && realResult === 'home') return 'hit'
+            if (pred === 'Time B' && realResult === 'away') return 'hit'
+            if (pred === 'Empate' && realResult === 'draw') return 'hit'
+            return 'miss'
+          }
+        }
+
+        const allFiltered = localMatches
           .filter(m => {
             if (filterGroup && m.group_name !== filterGroup) return false
             if (filterDate) {
@@ -461,14 +491,63 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
             return true
           })
           .sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())
-        if (filtered.length === 0) {
-          return (
-            <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, textAlign: 'center', py: 4 }}>
-              Nenhum jogo encontrado para este filtro.
-            </Typography>
-          )
-        }
+
+        const pendingMatches = allFiltered.filter(m => m.status !== 'completed' && !(['live','in_play','playing','halftime','delayed'].includes(m.status)))
+        const finishedMatches = allFiltered.filter(m => m.status === 'completed' || ['live','in_play','playing','halftime','delayed'].includes(m.status))
+          .sort((a, b) => new Date(b.match_date).getTime() - new Date(a.match_date).getTime())
+
+        const finishedHits = finishedMatches.filter(m => {
+          const pred = predictions.find(p => p.matchId === m.id)?.prediction
+          const r = checkHit(m, pred)
+          return r === 'hit' || r === 'exact'
+        }).length
+        const finishedTotal = finishedMatches.filter(m => m.status === 'completed').length
+
+        const filtered = matchTab === 'pending' ? pendingMatches : finishedMatches
+
         return (
+          <>
+            {/* Tabs A palpitar / Finalizados */}
+            <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
+              <Box onClick={() => setMatchTab('pending')} sx={{
+                px: 2.5, py: 0.8, borderRadius: '20px', cursor: 'pointer', border: '1px solid',
+                borderColor: matchTab === 'pending' ? '#C9940A' : 'rgba(255,255,255,0.1)',
+                bgcolor: matchTab === 'pending' ? 'rgba(201,148,10,0.12)' : 'transparent',
+                transition: 'all 0.15s',
+              }}>
+                <Typography sx={{ color: matchTab === 'pending' ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>
+                  A palpitar {pendingMatches.length > 0 && `(${pendingMatches.length})`}
+                </Typography>
+              </Box>
+              <Box onClick={() => setMatchTab('finished')} sx={{
+                px: 2.5, py: 0.8, borderRadius: '20px', cursor: 'pointer', border: '1px solid',
+                borderColor: matchTab === 'finished' ? '#C9940A' : 'rgba(255,255,255,0.1)',
+                bgcolor: matchTab === 'finished' ? 'rgba(201,148,10,0.12)' : 'transparent',
+                transition: 'all 0.15s',
+                display: 'flex', alignItems: 'center', gap: 1,
+              }}>
+                <Typography sx={{ color: matchTab === 'finished' ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>
+                  Finalizados {finishedMatches.length > 0 && `(${finishedMatches.length})`}
+                </Typography>
+                {finishedTotal > 0 && (
+                  <Box sx={{
+                    px: 1, py: 0.1, borderRadius: '10px',
+                    bgcolor: finishedHits > 0 ? 'rgba(99,202,132,0.15)' : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${finishedHits > 0 ? 'rgba(99,202,132,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                  }}>
+                    <Typography sx={{ color: finishedHits > 0 ? '#63ca84' : 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 800 }}>
+                      {finishedHits}/{finishedTotal}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+
+            {filtered.length === 0 ? (
+              <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, textAlign: 'center', py: 4 }}>
+                {matchTab === 'pending' ? 'Nenhum jogo aguardando palpite.' : 'Nenhum jogo finalizado ainda.'}
+              </Typography>
+            ) : (
           <Stack spacing={3} sx={{ alignItems: 'center' }}>
             {filtered.map(match => {
               const prediction = predictions.find(p => p.matchId === match.id)
@@ -477,23 +556,34 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
               const currentChoice = prediction?.prediction
               const isCompleted = match.status === 'completed'
               const isLive = ['live', 'in_play', 'playing', 'halftime', 'delayed'].includes(match.status)
+              const hitResult = checkHit(match, currentChoice)
+              const isHit = hitResult === 'hit'
+              const isMiss = hitResult === 'miss'
 
               const selectedGold = '#C9940A'
               const isDisabled = isStarted
 
               return (
                 <Card key={match.id} sx={{
-                  bgcolor: 'rgba(12,12,12)',
-                  border: '1px solid rgba(255,255,255,0.05)',
+                  bgcolor: isHit
+                    ? 'rgba(99,202,132,0.04)'
+                    : isMiss ? 'rgba(255,80,80,0.03)' : 'rgba(12,12,12)',
+                  border: isHit
+                    ? '1px solid rgba(99,202,132,0.45)'
+                    : isMiss
+                      ? '1px solid rgba(255,80,80,0.2)'
+                      : '1px solid rgba(255,255,255,0.05)',
                   borderRadius: '16px',
                   overflow: 'hidden',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                  boxShadow: isHit
+                    ? '0 4px 20px rgba(99,202,132,0.08)'
+                    : '0 4px 20px rgba(0,0,0,0.3)',
                   transition: 'all 0.3s ease',
                   maxWidth: 600,
                   mx: 'auto',
                   width: '100%',
                   opacity: isDisabled && !currentChoice ? 0.6 : 1,
-                  '&:hover': { borderColor: isDisabled ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)' }
+                  '&:hover': { borderColor: isHit ? 'rgba(99,202,132,0.5)' : isDisabled ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)' }
                 }}>
                   {/* Top Banner with Match Info */}
                   <Box sx={{
@@ -508,9 +598,19 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                       {match.round !== 'group' ? match.round : `Grupo ${match.group_name}`}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {isCompleted && (
-                        <Box sx={{ px: 1, bgcolor: 'rgba(255,255,255,0.15)', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
-                          <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: 9, fontWeight: 900 }}>ENCERRADO</Typography>
+                      {isHit && (
+                        <Box sx={{ px: 1, py: 0.15, bgcolor: 'rgba(99,202,132,0.15)', border: '1px solid rgba(99,202,132,0.3)', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                          <Typography sx={{ color: '#63ca84', fontSize: 9, fontWeight: 900 }}>✓ ACERTOU</Typography>
+                        </Box>
+                      )}
+                      {isMiss && (
+                        <Box sx={{ px: 1, py: 0.15, bgcolor: 'rgba(255,80,80,0.12)', border: '1px solid rgba(255,80,80,0.25)', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                          <Typography sx={{ color: '#ff7070', fontSize: 9, fontWeight: 900 }}>✗ ERROU</Typography>
+                        </Box>
+                      )}
+                      {isCompleted && !isHit && !isMiss && (
+                        <Box sx={{ px: 1, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                          <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: 900 }}>ENCERRADO</Typography>
                         </Box>
                       )}
                       {!isCompleted && isLive && (
@@ -715,6 +815,8 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
               )
             })}
           </Stack>
+            )}
+          </>
         )
       })()}
 
