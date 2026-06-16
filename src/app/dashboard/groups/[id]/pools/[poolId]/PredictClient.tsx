@@ -499,7 +499,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
         const finishedHits = finishedMatches.filter(m => {
           const pred = predictions.find(p => p.matchId === m.id)?.prediction
           const r = checkHit(m, pred)
-          return r === 'hit' || r === 'exact'
+          return r === 'hit'
         }).length
         const finishedTotal = finishedMatches.filter(m => m.status === 'completed').length
 
