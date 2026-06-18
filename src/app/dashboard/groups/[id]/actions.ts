@@ -439,6 +439,38 @@ export async function removeMember(groupId: string, memberId: string) {
   return { success: true }
 }
 
+export async function leaveGroup(groupId: string) {
+  const supabase = await createServerSupabaseClient()
+  const supabaseAdmin = createAdminClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Usuário não autenticado.' }
+
+  const { data: group } = await supabase
+    .from('groups')
+    .select('owner_id')
+    .eq('id', groupId)
+    .single()
+
+  if (!group) return { error: 'Grupo não encontrado.' }
+  if (group.owner_id === user.id) return { error: 'O administrador não pode sair do grupo. Exclua o grupo caso queira removê-lo.' }
+
+  const { error } = await supabaseAdmin
+    .from('group_members')
+    .delete()
+    .eq('group_id', groupId)
+    .eq('user_id', user.id)
+
+  if (error) {
+    console.error('leaveGroup error:', error)
+    return { error: 'Erro ao sair do grupo.' }
+  }
+
+  revalidatePath('/dashboard/my-groups')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
 export async function deleteGroup(groupId: string) {
   const supabase = await createServerSupabaseClient()
   const supabaseAdmin = createAdminClient()

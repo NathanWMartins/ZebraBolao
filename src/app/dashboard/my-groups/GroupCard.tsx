@@ -18,8 +18,8 @@ import LockIcon from '@mui/icons-material/Lock'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { deleteGroup } from '../groups/[id]/actions'
-import { DeleteOutlineOutlined } from '@mui/icons-material'
+import { deleteGroup, leaveGroup } from '../groups/[id]/actions'
+import { DeleteOutlineOutlined, ExitToAppOutlined } from '@mui/icons-material'
 
 interface Group {
   id: string
@@ -37,7 +37,9 @@ interface GroupCardProps {
 export default function GroupCard({ group, isOwner }: GroupCardProps) {
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [leaving, setLeaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function handleDelete() {
@@ -55,6 +57,24 @@ export default function GroupCard({ group, isOwner }: GroupCardProps) {
     } catch {
       setError('Erro inesperado ao excluir o grupo.')
       setDeleting(false)
+    }
+  }
+
+  async function handleLeave() {
+    setLeaving(true)
+    setError(null)
+    try {
+      const result = await leaveGroup(group.id)
+      if (result.error) {
+        setError(result.error)
+        setLeaving(false)
+      } else {
+        setLeaveDialogOpen(false)
+        router.refresh()
+      }
+    } catch {
+      setError('Erro inesperado ao sair do grupo.')
+      setLeaving(false)
     }
   }
 
@@ -143,24 +163,85 @@ export default function GroupCard({ group, isOwner }: GroupCardProps) {
             </Button>
           </Link>
 
-          {isOwner && (
+          {isOwner ? (
             <IconButton
               onClick={() => setDialogOpen(true)}
               size="small"
               sx={{
                 color: '#ff4444',
-                '&:hover': {
-                  color: '#8b1616ff',
-                  bgcolor: 'rgba(255,68,68,0.08)',
-                },
+                '&:hover': { color: '#8b1616ff', bgcolor: 'rgba(255,68,68,0.08)' },
                 transition: 'all 0.2s',
               }}
             >
               <DeleteOutlineOutlined fontSize="small" />
             </IconButton>
+          ) : (
+            <IconButton
+              onClick={() => setLeaveDialogOpen(true)}
+              size="small"
+              title="Sair do grupo"
+              sx={{
+                color: 'rgba(255,255,255,0.3)',
+                '&:hover': { color: 'rgb(189, 19, 19)', bgcolor: 'rgba(255,152,0,0.08)' },
+                transition: 'all 0.2s',
+              }}
+            >
+              <ExitToAppOutlined fontSize="small" />
+            </IconButton>
           )}
         </Box>
       </Box>
+
+      {/* Dialog sair do grupo */}
+      <Dialog
+        open={leaveDialogOpen}
+        onClose={() => !leaving && setLeaveDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: { bgcolor: '#111110', backgroundImage: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px' } } }}
+      >
+        <DialogTitle sx={{ p: 3, pb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ width: 40, height: 40, borderRadius: '10px', bgcolor: 'rgba(255,152,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <ExitToAppOutlined sx={{ color: '#ff9800', fontSize: 20 }} />
+            </Box>
+            <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>
+              Sair do grupo?
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, pb: 1 }}>
+          <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, lineHeight: 1.6 }}>
+            Tem certeza que deseja sair do grupo <Box component="span" sx={{ color: '#fff', fontWeight: 600 }}>"{group.name}"</Box>?
+          </Typography>
+          <Typography sx={{ color: 'rgba(255,152,0,0.8)', fontSize: 13, mt: 1.5, lineHeight: 1.5 }}>
+            Seus palpites serão mantidos, mas você perderá acesso ao grupo e ao ranking.
+          </Typography>
+          {error && (
+            <Box sx={{ mt: 2, p: 1.5, bgcolor: 'rgba(255,68,68,0.08)', borderRadius: '8px', border: '1px solid rgba(255,68,68,0.2)' }}>
+              <Typography sx={{ color: '#ff4444', fontSize: 13 }}>{error}</Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 2, gap: 1.5 }}>
+          <Button
+            onClick={() => setLeaveDialogOpen(false)}
+            disabled={leaving}
+            sx={{ color: 'rgba(255,255,255,0.5)', fontWeight: 600, textTransform: 'none', '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.05)' } }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleLeave}
+            disabled={leaving}
+            variant="contained"
+            startIcon={leaving ? <CircularProgress size={16} color="inherit" /> : <ExitToAppOutlined />}
+            sx={{ bgcolor: '#ff9800', color: '#fff', fontWeight: 700, textTransform: 'none', borderRadius: '10px', px: 3, '&:hover': { bgcolor: '#ff4444' }, '&.Mui-disabled': { bgcolor: 'rgba(255,152,0,0.4)' } }}
+          >
+            {leaving ? 'Saindo...' : 'Sim, sair'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Dialog de confirmação */}
       <Dialog

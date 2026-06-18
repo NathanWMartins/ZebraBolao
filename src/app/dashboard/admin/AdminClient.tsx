@@ -125,20 +125,20 @@ export default function AdminClient({
     // Navigation
     const [section, setSection] = useState<'matches' | 'stats'>('matches')
     const [statsSubTab, setStatsSubTab] = useState<StatsSubTab>('scorers')
-    const [matchFilter, setMatchFilter] = useState<'all' | 'group' | 'knockout'>('all')
-    const [groupFilter, setGroupFilter] = useState<string | null>(null)
+    const [matchTab, setMatchTab] = useState<'started' | 'upcoming'>('started')
 
-    const availableGroups = [...new Set(matches.filter(m => m.round === 'group' && m.group_name).map(m => m.group_name))].sort()
+    const liveStatuses = ['live', 'in_play', 'playing', 'halftime', 'delayed']
+    const isMatchStarted = (m: Match) =>
+        m.status === 'completed' || liveStatuses.includes(m.status) || new Date(m.match_date) < new Date()
 
-    const filteredMatches = matches.filter(m => {
-        if (matchFilter === 'group') {
-            if (m.round !== 'group') return false
-            if (groupFilter && m.group_name !== groupFilter) return false
-            return true
-        }
-        if (matchFilter === 'knockout') return m.round !== 'group'
-        return true
-    })
+    const startedMatches = [...matches]
+        .filter(m => isMatchStarted(m))
+        .sort((a, b) => new Date(b.match_date).getTime() - new Date(a.match_date).getTime())
+    const upcomingMatches = [...matches]
+        .filter(m => !isMatchStarted(m))
+        .sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())
+
+    const filteredMatches = matchTab === 'started' ? startedMatches : upcomingMatches
 
     const handleCalculateScores = async (id: string) => {
         setCalculatingMatch(id)
@@ -301,27 +301,18 @@ export default function AdminClient({
             {/* Matches */}
             {section === 'matches' && (
                 <Stack spacing={2}>
-                    {/* Filtros */}
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', pb: 1 }}>
-                        {(['all', 'group', 'knockout'] as const).map(f => (
-                            <Box key={f} onClick={() => { setMatchFilter(f); setGroupFilter(null) }} sx={{
-                                px: 2, py: 0.5, borderRadius: '20px', cursor: 'pointer', border: '1px solid',
-                                borderColor: matchFilter === f ? '#C9940A' : 'rgba(255,255,255,0.1)',
-                                bgcolor: matchFilter === f ? 'rgba(201,148,10,0.12)' : 'transparent',
+                    {/* Tabs */}
+                    <Box sx={{ display: 'flex', gap: 1, pb: 1 }}>
+                        {(['started', 'upcoming'] as const).map(t => (
+                            <Box key={t} onClick={() => setMatchTab(t)} sx={{
+                                px: 2.5, py: 0.75, borderRadius: '20px', cursor: 'pointer', border: '1px solid',
+                                borderColor: matchTab === t ? '#C9940A' : 'rgba(255,255,255,0.1)',
+                                bgcolor: matchTab === t ? 'rgba(201,148,10,0.12)' : 'transparent',
                             }}>
-                                <Typography sx={{ color: matchFilter === f ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>
-                                    {f === 'all' ? 'Todos' : f === 'group' ? 'Fase de Grupos' : 'Mata-Mata'}
-                                </Typography>
-                            </Box>
-                        ))}
-                        {matchFilter === 'group' && availableGroups.map(g => (
-                            <Box key={g} onClick={() => setGroupFilter(groupFilter === g ? null : g)} sx={{
-                                px: 2, py: 0.5, borderRadius: '20px', cursor: 'pointer', border: '1px solid',
-                                borderColor: groupFilter === g ? '#C9940A' : 'rgba(255,255,255,0.1)',
-                                bgcolor: groupFilter === g ? 'rgba(201,148,10,0.12)' : 'transparent',
-                            }}>
-                                <Typography sx={{ color: groupFilter === g ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>
-                                    Grupo {g}
+                                <Typography sx={{ color: matchTab === t ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>
+                                    {t === 'started'
+                                        ? `Iniciados/Completados${startedMatches.length > 0 ? ` (${startedMatches.length})` : ''}`
+                                        : `Em breve${upcomingMatches.length > 0 ? ` (${upcomingMatches.length})` : ''}`}
                                 </Typography>
                             </Box>
                         ))}
@@ -340,7 +331,7 @@ export default function AdminClient({
                                     <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>{translateTeam(match.away_team)}</Typography>
                                     <Avatar src={getFlagUrl(match.away_team, 40)} sx={{ width: 24, height: 24 }} />
                                     <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, ml: 'auto' }}>
-                                        {date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                        {date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })} • {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}h
                                     </Typography>
                                 </Box>
                                 <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
