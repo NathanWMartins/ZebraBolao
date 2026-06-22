@@ -133,6 +133,33 @@ export async function updateMatch(id: string, status: string, homeScore: number 
   return { success: true }
 }
 
+export async function recalculateAllScores(): Promise<{ matchesProcessed: number; poolsUpdated: number }> {
+  const supabase = await checkAdmin()
+
+  // Busca todos os jogos completed com placar
+  const { data: completedMatches } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('status', 'completed')
+    .not('home_score', 'is', null)
+    .not('away_score', 'is', null)
+
+  if (!completedMatches || completedMatches.length === 0) return { matchesProcessed: 0, poolsUpdated: 0 }
+
+  // Primeiro limpa todos os scores existentes para recalcular do zero
+  await supabase.from('scores').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+
+  let totalPoolsUpdated = 0
+  for (const match of completedMatches) {
+    const res = await calculateScoresForMatch(match.id)
+    totalPoolsUpdated = Math.max(totalPoolsUpdated, res.poolsUpdated)
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/my-groups')
+  return { matchesProcessed: completedMatches.length, poolsUpdated: totalPoolsUpdated }
+}
+
 export async function calculateScoresForMatch(matchId: string): Promise<{ poolsUpdated: number }> {
   const supabase = await checkAdmin()
 

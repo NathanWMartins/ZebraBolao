@@ -8,7 +8,7 @@ import {
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import Link from 'next/link'
-import { updateMatch, incrementStat, decrementStat, addPlayerStat, calculateScoresForMatch, addTeamCard, decrementTeamCard, setSyncPaused, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry } from '../admin-actions'
+import { updateMatch, incrementStat, decrementStat, addPlayerStat, calculateScoresForMatch, recalculateAllScores, addTeamCard, decrementTeamCard, setSyncPaused, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry } from '../admin-actions'
 import { translateTeam } from '@/lib/teamTranslations'
 import { getFlagUrl } from '@/lib/teamFlags'
 import TeamFlag from '@/app/components/TeamFlag'
@@ -25,6 +25,10 @@ interface Match {
     status: string
     home_score: number | null
     away_score: number | null
+    home_yellows: number
+    home_reds: number
+    away_yellows: number
+    away_reds: number
 }
 
 interface PlayerStat {
@@ -70,6 +74,21 @@ export default function AdminClient({
     const [calculatingMatch, setCalculatingMatch] = useState<string | null>(null)
     const [calcResult, setCalcResult] = useState<Record<string, { ok: boolean, msg: string }>>({})
     const [scoredMatchIds, setScoredMatchIds] = useState<Set<string>>(new Set(initialScoredMatchIds))
+    const [recalculating, setRecalculating] = useState(false)
+    const [recalcResult, setRecalcResult] = useState<{ ok: boolean; msg: string } | null>(null)
+
+    const handleRecalculateAll = async () => {
+        setRecalculating(true)
+        setRecalcResult(null)
+        try {
+            const res = await recalculateAllScores()
+            setRecalcResult({ ok: true, msg: `${res.matchesProcessed} jogos recalculados` })
+        } catch (e: any) {
+            setRecalcResult({ ok: false, msg: e.message })
+        } finally {
+            setRecalculating(false)
+        }
+    }
 
     // Player stats
     const [playerStats, setPlayerStats] = useState(initialStats)
@@ -287,6 +306,40 @@ export default function AdminClient({
                 </Box>
             </Box>
 
+            {/* Recalcular todos os pontos */}
+            <Box sx={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                bgcolor: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: '12px', px: 2, py: 1.5, mb: 3,
+            }}>
+                <Box>
+                    <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>Recalcular todos os pontos</Typography>
+                    <Typography sx={{ color: recalcResult ? (recalcResult.ok ? '#4caf50' : '#ff6b6b') : 'rgba(255,255,255,0.4)', fontSize: 11 }}>
+                        {recalcResult ? recalcResult.msg : 'Zera e recalcula pontos de todos os jogos concluídos'}
+                    </Typography>
+                </Box>
+                <Button
+                    onClick={handleRecalculateAll}
+                    disabled={recalculating}
+                    size="small"
+                    variant="outlined"
+                    startIcon={recalculating ? <CircularProgress size={12} color="inherit" /> : undefined}
+                    sx={{
+                        color: '#C9940A',
+                        borderColor: 'rgba(201,148,10,0.4)',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        textTransform: 'none',
+                        px: 2,
+                        '&:hover': { borderColor: '#C9940A', bgcolor: 'rgba(201,148,10,0.08)' },
+                        '&.Mui-disabled': { color: 'rgba(201,148,10,0.3)', borderColor: 'rgba(201,148,10,0.2)' },
+                    }}
+                >
+                    {recalculating ? 'Calculando...' : '⚡ Recalcular tudo'}
+                </Button>
+            </Box>
+
             {/* Section tabs */}
             <Box sx={{ display: 'flex', gap: 1, mb: 4 }}>
                 {(['matches', 'stats'] as const).map(s => (
@@ -331,7 +384,39 @@ export default function AdminClient({
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                                     <Avatar src={getFlagUrl(match.home_team, 40)} sx={{ width: 24, height: 24 }} />
                                     <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>{translateTeam(match.home_team)}</Typography>
+                                    {match.status === 'completed' && (match.home_yellows > 0 || match.home_reds > 0) && (
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            {match.home_yellows > 0 && (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                                                    <Box sx={{ width: 8, height: 11, bgcolor: '#f5c518', borderRadius: '1px' }} />
+                                                    <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: 700 }}>{match.home_yellows}</Typography>
+                                                </Box>
+                                            )}
+                                            {match.home_reds > 0 && (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                                                    <Box sx={{ width: 8, height: 11, bgcolor: '#ff4444', borderRadius: '1px' }} />
+                                                    <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: 700 }}>{match.home_reds}</Typography>
+                                                </Box>
+                                            )}
+                                        </Box>
+                                    )}
                                     <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>x</Typography>
+                                    {match.status === 'completed' && (match.away_yellows > 0 || match.away_reds > 0) && (
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            {match.away_yellows > 0 && (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                                                    <Box sx={{ width: 8, height: 11, bgcolor: '#f5c518', borderRadius: '1px' }} />
+                                                    <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: 700 }}>{match.away_yellows}</Typography>
+                                                </Box>
+                                            )}
+                                            {match.away_reds > 0 && (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                                                    <Box sx={{ width: 8, height: 11, bgcolor: '#ff4444', borderRadius: '1px' }} />
+                                                    <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: 700 }}>{match.away_reds}</Typography>
+                                                </Box>
+                                            )}
+                                        </Box>
+                                    )}
                                     <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>{translateTeam(match.away_team)}</Typography>
                                     <Avatar src={getFlagUrl(match.away_team, 40)} sx={{ width: 24, height: 24 }} />
                                     <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, ml: 'auto' }}>

@@ -471,8 +471,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
           if (poolType === 'score') {
             const [ph, pa] = pred.split('-').map(Number)
             if (ph === match.home_score && pa === match.away_score) return 'hit'
-            const predResult = ph > pa ? 'home' : pa > ph ? 'away' : 'draw'
-            return predResult === realResult ? 'hit' : 'miss'
+            return 'miss'
           } else {
             // palpite é 'Time A' (casa), 'Time B' (fora) ou 'Empate'
             if (pred === 'Time A' && realResult === 'home') return 'hit'

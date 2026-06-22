@@ -108,8 +108,14 @@ async function processFinishedMatch(
     }
   }
 
-  // Marca completed e calcula pontos
-  await supabase.from('matches').update({ status: 'completed' }).eq('id', dbMatch.id)
+  // Salva cartões por jogo na tabela matches
+  await supabase.from('matches').update({
+    status: 'completed',
+    home_yellows: s.home_yellows,
+    home_reds: s.home_reds,
+    away_yellows: s.away_yellows,
+    away_reds: s.away_reds,
+  }).eq('id', dbMatch.id)
 
   try {
     await calculateScoresForMatch(dbMatch.id)
@@ -177,7 +183,17 @@ export async function GET(request: Request) {
       })
     }
 
-    // Busca jogos atualizados da API
+    // Snapshot dos jogos ainda não completed ANTES do upsert
+    const { data: notYetCompleted } = await supabaseAdmin
+      .from('matches')
+      .select('id, external_id, home_team, away_team')
+      .neq('status', 'completed')
+
+    const notYetCompletedMap = new Map(
+      (notYetCompleted ?? []).map((m: any) => [m.external_id, m])
+    )
+
+    // Busca jogos atualizados da API e faz upsert
     await checkAndReserveApiCalls(1)
     const groupApiMatches = await getMatchesAPI('group')
     const groupCount = await upsertMatches(supabaseAdmin, groupApiMatches)
@@ -192,32 +208,26 @@ export async function GET(request: Request) {
       knockoutCount = await upsertMatches(supabaseAdmin, knockoutApiMatches)
     }
 
-    // Detecta jogos que a API marcou como completed mas o banco ainda não tem
+    // Detecta jogos que a API marcou como completed e que ANTES do upsert ainda não eram
     const allApiMatches = [...groupApiMatches, ...knockoutApiMatches]
     const justFinished = allApiMatches.filter(
       (m) => m.status === 'completed' && m.home_score !== null && m.away_score !== null
+        && notYetCompletedMap.has(String(m.id))
     )
 
     let matchesProcessed = 0
     let matchesErrors = 0
 
-    if (justFinished.length > 0) {
-      const externalIds = justFinished.map((m) => String(m.id))
-      const { data: dbToProcess } = await supabaseAdmin
-        .from('matches')
-        .select('id, external_id, home_team, away_team, status')
-        .in('external_id', externalIds)
-        .neq('status', 'completed')
-
-      for (const dbMatch of dbToProcess ?? []) {
-        try {
-          await checkAndReserveApiCalls(1)
-          await processFinishedMatch(supabaseAdmin, dbMatch)
-          matchesProcessed++
-        } catch (e: any) {
-          console.error(`Erro ao processar match ${dbMatch.id}:`, e.message)
-          matchesErrors++
-        }
+    for (const apiMatch of justFinished) {
+      const dbMatch = notYetCompletedMap.get(String(apiMatch.id))
+      if (!dbMatch) continue
+      try {
+        await checkAndReserveApiCalls(1)
+        await processFinishedMatch(supabaseAdmin, dbMatch)
+        matchesProcessed++
+      } catch (e: any) {
+        console.error(`Erro ao processar match ${dbMatch.id}:`, e.message)
+        matchesErrors++
       }
     }
 
