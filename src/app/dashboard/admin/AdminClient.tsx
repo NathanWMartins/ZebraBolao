@@ -49,12 +49,14 @@ export default function AdminClient({
     teamStats: initialTeamStats,
     syncPaused: initialSyncPaused,
     groupStandings: initialStandings,
+    scoredMatchIds: initialScoredMatchIds,
 }: {
     matches: Match[]
     playerStats: PlayerStat[]
     teamStats: TeamStat[]
     syncPaused: boolean
     groupStandings: GroupStandingEntry[]
+    scoredMatchIds: string[]
 }) {
     const [matchStates, setMatchStates] = useState<Record<string, { status: string, home_score: string, away_score: string }>>(
         () => Object.fromEntries(matches.map(m => [m.id, {
@@ -67,6 +69,7 @@ export default function AdminClient({
     const [matchFeedback, setMatchFeedback] = useState<Record<string, { ok: boolean, msg: string }>>({})
     const [calculatingMatch, setCalculatingMatch] = useState<string | null>(null)
     const [calcResult, setCalcResult] = useState<Record<string, { ok: boolean, msg: string }>>({})
+    const [scoredMatchIds, setScoredMatchIds] = useState<Set<string>>(new Set(initialScoredMatchIds))
 
     // Player stats
     const [playerStats, setPlayerStats] = useState(initialStats)
@@ -83,13 +86,13 @@ export default function AdminClient({
     // Sync control
     const [syncPaused, setSyncPausedState] = useState(initialSyncPaused)
     const [togglingSync, setTogglingSync] = useState(false)
-
     const handleToggleSync = async (paused: boolean) => {
         setTogglingSync(true)
         setSyncPausedState(paused)
         await setSyncPaused(paused)
         setTogglingSync(false)
     }
+
 
     // Group standings
     const [standings, setStandings] = useState<GroupStandingEntry[]>(initialStandings)
@@ -146,6 +149,7 @@ export default function AdminClient({
         try {
             const res = await calculateScoresForMatch(id)
             setCalcResult(prev => ({ ...prev, [id]: { ok: true, msg: `${res.poolsUpdated} bolão(ões) atualizados` } }))
+            setScoredMatchIds(prev => new Set([...prev, id]))
         } catch (e: any) {
             setCalcResult(prev => ({ ...prev, [id]: { ok: false, msg: e.message } }))
         } finally {
@@ -373,14 +377,20 @@ export default function AdminClient({
                                         {saving ? <CircularProgress size={14} color="inherit" /> : 'Salvar'}
                                     </Button>
                                     {s.status === 'completed' && (
-                                        <Button
-                                            onClick={() => handleCalculateScores(match.id)}
-                                            disabled={calculatingMatch === match.id}
-                                            size="small"
-                                            sx={{ bgcolor: 'rgba(255,255,255,0.07)', color: '#fff', fontWeight: 700, fontSize: 12, px: 2, borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' }, '&.Mui-disabled': { opacity: 0.4 } }}
-                                        >
-                                            {calculatingMatch === match.id ? <CircularProgress size={14} color="inherit" /> : '⚡ Calcular Pontos'}
-                                        </Button>
+                                        scoredMatchIds.has(match.id) ? (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.5, py: 0.5, borderRadius: '8px', bgcolor: 'rgba(76,175,80,0.1)', border: '1px solid rgba(76,175,80,0.25)' }}>
+                                                <Typography sx={{ color: '#4caf50', fontSize: 11, fontWeight: 700 }}>✓ Pontos calculados</Typography>
+                                            </Box>
+                                        ) : (
+                                            <Button
+                                                onClick={() => handleCalculateScores(match.id)}
+                                                disabled={calculatingMatch === match.id}
+                                                size="small"
+                                                sx={{ bgcolor: 'rgba(255,255,255,0.07)', color: '#fff', fontWeight: 700, fontSize: 12, px: 2, borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' }, '&.Mui-disabled': { opacity: 0.4 } }}
+                                            >
+                                                {calculatingMatch === match.id ? <CircularProgress size={14} color="inherit" /> : '⚡ Calcular Pontos'}
+                                            </Button>
+                                        )
                                     )}
                                 </Box>
                                 {(matchFeedback[match.id] || calcResult[match.id]) && (

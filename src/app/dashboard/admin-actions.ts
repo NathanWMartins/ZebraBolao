@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache'
+import { getPointsForRound } from '@/lib/scoring'
 
 async function checkAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -152,10 +153,10 @@ export async function calculateScoresForMatch(matchId: string): Promise<{ poolsU
   let poolsUpdated = 0
 
   for (const pool of affectedPools) {
-    // Busca todos os jogos do bolão que já têm placar
+    // Busca todos os jogos do bolão que já têm placar (inclui round para pontuação)
     const { data: matches } = await supabase
       .from('matches')
-      .select('id, home_score, away_score, status')
+      .select('id, home_score, away_score, status, round')
       .in('id', pool.match_ids)
 
     const completedMatches = (matches ?? []).filter(
@@ -180,15 +181,16 @@ export async function calculateScoresForMatch(matchId: string): Promise<{ poolsU
       const a = match.away_score as number
       const actualResult = h > a ? 'Time A' : a > h ? 'Time B' : 'Empate'
       const exactScore = `${h}-${a}`
+      const pts = getPointsForRound(match.round)
 
       for (const pred of predictions) {
         if (pred.match_id !== match.id) continue
         if (!(pred.user_id in userPoints)) userPoints[pred.user_id] = 0
 
         if (pool.type === 'score') {
-          if (pred.prediction === exactScore) userPoints[pred.user_id] += 1
+          if (pred.prediction === exactScore) userPoints[pred.user_id] += pts
         } else {
-          if (pred.prediction === actualResult) userPoints[pred.user_id] += 1
+          if (pred.prediction === actualResult) userPoints[pred.user_id] += pts
         }
       }
     }

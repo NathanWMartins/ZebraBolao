@@ -43,6 +43,7 @@ interface Match {
   home_team_flag?: string
   away_team_flag?: string
   status: string
+  phase?: string | null
   home_score: number | null
   away_score: number | null
 }
@@ -562,6 +563,11 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
               const currentChoice = prediction?.prediction
               const isCompleted = match.status === 'completed'
               const isLive = ['live', 'in_play', 'playing', 'halftime', 'delayed'].includes(match.status)
+              const phaseLabel: Record<string, string> = {
+                '1H': '1º TEMPO', 'HT': 'INTERVALO', '2H': '2º TEMPO',
+                'ET1': 'PRORROG.', 'ET2': 'PRORROG.', 'PEN': 'PÊNALTIS',
+              }
+              const liveBadge = match.phase && phaseLabel[match.phase] ? phaseLabel[match.phase] : 'AO VIVO'
               const hitResult = checkHit(match, currentChoice)
               const isHit = hitResult === 'hit'
               const isMiss = hitResult === 'miss'
@@ -620,8 +626,8 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                         </Box>
                       )}
                       {!isCompleted && isLive && (
-                        <Box sx={{ px: 1, bgcolor: '#ff4444', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
-                          <Typography sx={{ color: '#fff', fontSize: 9, fontWeight: 900 }}>AO VIVO</Typography>
+                        <Box sx={{ px: 1, bgcolor: match.phase === 'HT' ? '#ff9800' : '#ff4444', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                          <Typography sx={{ color: '#fff', fontSize: 9, fontWeight: 900 }}>{liveBadge}</Typography>
                         </Box>
                       )}
                       <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 700 }}>

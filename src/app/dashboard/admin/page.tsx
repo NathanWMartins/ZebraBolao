@@ -30,5 +30,14 @@ export default async function AdminPage() {
     const syncPaused = await getSyncPaused()
     const groupStandings = await getGroupStandings()
 
-    return <AdminClient matches={matches ?? []} playerStats={playerStats ?? []} teamStats={teamStats ?? []} syncPaused={syncPaused} groupStandings={groupStandings} />
+    // Match IDs que já tiveram pontos calculados (aparecem em scored_match_ids de algum score)
+    const { data: scoresData } = await supabase
+        .from('scores')
+        .select('scored_match_ids')
+
+    const scoredMatchIds = new Set<string>(
+        (scoresData ?? []).flatMap((s: any) => s.scored_match_ids ?? [])
+    )
+
+    return <AdminClient matches={matches ?? []} playerStats={playerStats ?? []} teamStats={teamStats ?? []} syncPaused={syncPaused} groupStandings={groupStandings} scoredMatchIds={[...scoredMatchIds]} />
 }

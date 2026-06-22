@@ -80,6 +80,37 @@ export interface WC2026MatchAPI {
   home_score: number | null
   away_score: number | null
   status: string
+  phase?: string // PRE, 1H, HT, 2H, ET1, ET2, PEN, FT, FT_PEN
+}
+
+export interface WC2026TimelineEvent {
+  team: string       // team code e.g. "BRA"
+  type: 'goal' | 'own_goal' | 'yellow_card' | 'red_card'
+  extra: string | null
+  minute: number
+  player: string
+}
+
+export interface WC2026MatchStats {
+  match_id: number
+  stats: {
+    home_possession: number
+    away_possession: number
+    home_shots: number
+    away_shots: number
+    home_shots_on_target: number
+    away_shots_on_target: number
+    home_corners: number
+    away_corners: number
+    home_fouls: number
+    away_fouls: number
+    home_yellows: number
+    away_yellows: number
+    home_reds: number
+    away_reds: number
+  }
+  timeline: WC2026TimelineEvent[]
+  fetched_at: string
 }
 
 // ────────────────────────────────────────────────
@@ -103,6 +134,10 @@ export async function getKnockoutMatchesAPI(): Promise<WC2026MatchAPI[]> {
     KNOCKOUT_ROUNDS.map((round) => getMatchesAPI(round))
   )
   return results.flat()
+}
+
+export async function getMatchStatsAPI(matchId: number): Promise<WC2026MatchStats> {
+  return wc2026Fetch<WC2026MatchStats>(`/matches/${matchId}/stats`)
 }
 
 // ────────────────────────────────────────────────

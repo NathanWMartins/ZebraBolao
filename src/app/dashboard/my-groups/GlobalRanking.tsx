@@ -7,8 +7,18 @@ import {
 } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import PublicIcon from '@mui/icons-material/Public'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import { joinGlobalRanking } from './actions'
 import type { GlobalRankingEntry } from './actions'
+
+const SCORING_RULES = [
+  { label: 'Fase de Grupos', pts: 1, color: 'rgba(255,255,255,0.5)' },
+  { label: '16avos de Final', pts: 2, color: '#60a5fa' },
+  { label: 'Oitavas de Final', pts: 3, color: '#34d399' },
+  { label: 'Quartas de Final', pts: 5, color: '#a78bfa' },
+  { label: 'Semifinal', pts: 8, color: '#fb923c' },
+  { label: 'Final', pts: 12, color: '#E8C44A' },
+]
 
 interface GlobalRankingProps {
   ranking: GlobalRankingEntry[]
@@ -84,6 +94,41 @@ export default function GlobalRanking({
               Participar
             </Button>
           )}
+        </Box>
+
+        {/* Tabela de pontuação */}
+        <Box sx={{
+          mb: 3,
+          p: 2,
+          bgcolor: 'rgba(255,255,255,0.02)',
+          border: '0.5px solid rgba(255,255,255,0.07)',
+          borderRadius: '12px',
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+            <InfoOutlinedIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.3)' }} />
+            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+              Pontos por acerto
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {SCORING_RULES.map(rule => (
+              <Box key={rule.label} sx={{
+                display: 'flex', alignItems: 'center', gap: 0.75,
+                bgcolor: 'rgba(0,0,0,0.3)', borderRadius: '8px', px: 1.5, py: 0.75,
+                border: `0.5px solid rgba(255,255,255,0.06)`,
+              }}>
+                <Box sx={{
+                  width: 22, height: 22, borderRadius: '6px',
+                  bgcolor: `${rule.color}20`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  <Typography sx={{ color: rule.color, fontSize: 11, fontWeight: 800 }}>{rule.pts}</Typography>
+                </Box>
+                <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>{rule.label}</Typography>
+              </Box>
+            ))}
+          </Box>
         </Box>
 
         {/* Se não participou ainda: tela de convite */}
