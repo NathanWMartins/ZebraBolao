@@ -28,12 +28,17 @@ interface Match {
   away_team: string
   match_date: string
   status: string
+  phase?: string | null
   home_score: number | null
   away_score: number | null
   result: string | null
   stadium: string
   round: string
   group_name: string
+  home_yellows: number | null
+  home_reds: number | null
+  away_yellows: number | null
+  away_reds: number | null
 }
 
 interface MatchesClientProps {
@@ -133,6 +138,11 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
     return formatted.charAt(0).toUpperCase() + formatted.slice(1)
   }
 
+  const PHASE_LABELS: Record<string, string> = {
+    '1H': '1º Tempo', 'HT': 'Intervalo', '2H': '2º Tempo',
+    'ET1': 'Prorrog.', 'ET2': 'Prorrog.', 'PEN': 'Pênaltis',
+  }
+
   const translateStatus = (match: Match) => {
     switch (match.status) {
       case 'scheduled':
@@ -140,8 +150,11 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
       case 'live':
       case 'in_play':
       case 'playing':
-        return 'Ao vivo'
-      case 'completed':
+        return match.phase && PHASE_LABELS[match.phase] ? PHASE_LABELS[match.phase] : 'Ao vivo'
+      case 'halftime':
+        return 'Intervalo'
+      case 'delayed':
+        return 'Atrasado'
       case 'completed':
       case 'completes':
         return 'Finalizado'
@@ -236,6 +249,45 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
                 </Typography>
               </Box>
             </Box>
+
+            {/* Cartões por time (só para jogos finalizados) */}
+            {isCompleted && ((match.home_yellows ?? 0) > 0 || (match.home_reds ?? 0) > 0 || (match.away_yellows ?? 0) > 0 || (match.away_reds ?? 0) > 0) && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1.5 }}>
+                {/* Casa */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{translateTeam(match.home_team)}</Typography>
+                  {(match.home_yellows ?? 0) > 0 && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                      <Box sx={{ width: 8, height: 11, bgcolor: '#f5c518', borderRadius: '1px' }} />
+                      <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700 }}>{match.home_yellows}</Typography>
+                    </Box>
+                  )}
+                  {(match.home_reds ?? 0) > 0 && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                      <Box sx={{ width: 8, height: 11, bgcolor: '#ff4444', borderRadius: '1px' }} />
+                      <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700 }}>{match.home_reds}</Typography>
+                    </Box>
+                  )}
+                </Box>
+                <Typography sx={{ color: 'rgba(255,255,255,0.15)', fontSize: 11 }}>•</Typography>
+                {/* Fora */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{translateTeam(match.away_team)}</Typography>
+                  {(match.away_yellows ?? 0) > 0 && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                      <Box sx={{ width: 8, height: 11, bgcolor: '#f5c518', borderRadius: '1px' }} />
+                      <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700 }}>{match.away_yellows}</Typography>
+                    </Box>
+                  )}
+                  {(match.away_reds ?? 0) > 0 && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                      <Box sx={{ width: 8, height: 11, bgcolor: '#ff4444', borderRadius: '1px' }} />
+                      <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700 }}>{match.away_reds}</Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            )}
           </Box>
 
           {/* Lado Direito: Estádio e Status */}

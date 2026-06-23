@@ -8,7 +8,7 @@ import {
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import Link from 'next/link'
-import { updateMatch, incrementStat, decrementStat, addPlayerStat, calculateScoresForMatch, recalculateAllScores, addTeamCard, decrementTeamCard, setSyncPaused, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry } from '../admin-actions'
+import { updateMatch, incrementStat, decrementStat, addPlayerStat, processMatchAndCalculate, recalculateAllScores, addTeamCard, decrementTeamCard, setSyncPaused, runSync, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry } from '../admin-actions'
 import { translateTeam } from '@/lib/teamTranslations'
 import { getFlagUrl } from '@/lib/teamFlags'
 import TeamFlag from '@/app/components/TeamFlag'
@@ -112,6 +112,29 @@ export default function AdminClient({
         setTogglingSync(false)
     }
 
+    // Sync manual
+    const [syncing, setSyncing] = useState(false)
+    const [syncResult, setSyncResult] = useState<{ ok: boolean; msg: string } | null>(null)
+    const handleRunSync = async () => {
+        setSyncing(true)
+        setSyncResult(null)
+        try {
+            const data = await runSync()
+            if ('skipped' in data && data.skipped) {
+                setSyncResult({ ok: true, msg: `Pulado: ${(data as any).reason}` })
+            } else if ('error' in data) {
+                setSyncResult({ ok: false, msg: (data as any).error })
+            } else {
+                const d = data as any
+                setSyncResult({ ok: true, msg: `${d.groupMatchesSynced ?? 0} jogos sincronizados • ${d.matchesFinished ?? 0} processados` })
+            }
+        } catch (e: any) {
+            setSyncResult({ ok: false, msg: e.message })
+        } finally {
+            setSyncing(false)
+        }
+    }
+
 
     // Group standings
     const [standings, setStandings] = useState<GroupStandingEntry[]>(initialStandings)
@@ -162,12 +185,12 @@ export default function AdminClient({
 
     const filteredMatches = matchTab === 'started' ? startedMatches : upcomingMatches
 
-    const handleCalculateScores = async (id: string) => {
+    const handleProcessMatch = async (id: string) => {
         setCalculatingMatch(id)
         setCalcResult(prev => { const n = { ...prev }; delete n[id]; return n })
         try {
-            const res = await calculateScoresForMatch(id)
-            setCalcResult(prev => ({ ...prev, [id]: { ok: true, msg: `${res.poolsUpdated} bolão(ões) atualizados` } }))
+            const res = await processMatchAndCalculate(id)
+            setCalcResult(prev => ({ ...prev, [id]: { ok: true, msg: `${res.goalsUpdated} gol(s) • ${res.poolsUpdated} bolão(ões) atualizados${res.statsNote}` } }))
             setScoredMatchIds(prev => new Set([...prev, id]))
         } catch (e: any) {
             setCalcResult(prev => ({ ...prev, [id]: { ok: false, msg: e.message } }))
@@ -257,7 +280,7 @@ export default function AdminClient({
         ))
     }
 
-    const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => a.team.localeCompare(b.team) || a.player_name.localeCompare(b.player_name))
+const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => a.team.localeCompare(b.team) || a.player_name.localeCompare(b.player_name))
     const assistsSorted = [...playerStats].filter(p => p.assists > 0).sort((a, b) => a.team.localeCompare(b.team) || a.player_name.localeCompare(b.player_name))
     const cardsSorted = [...teamStats].sort((a, b) => a.team.localeCompare(b.team))
 
@@ -304,6 +327,40 @@ export default function AdminClient({
                         }}
                     />
                 </Box>
+            </Box>
+
+            {/* Sync manual */}
+            <Box sx={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                bgcolor: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: '12px', px: 2, py: 1.5, mb: 3,
+            }}>
+                <Box>
+                    <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>Rodar sync agora</Typography>
+                    <Typography sx={{ color: syncResult ? (syncResult.ok ? '#4caf50' : '#ff6b6b') : 'rgba(255,255,255,0.4)', fontSize: 11 }}>
+                        {syncResult ? syncResult.msg : 'Busca jogos da API e processa encerrados'}
+                    </Typography>
+                </Box>
+                <Button
+                    onClick={handleRunSync}
+                    disabled={syncing}
+                    size="small"
+                    variant="outlined"
+                    startIcon={syncing ? <CircularProgress size={12} color="inherit" /> : undefined}
+                    sx={{
+                        color: '#60a5fa',
+                        borderColor: 'rgba(96,165,250,0.4)',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        textTransform: 'none',
+                        px: 2,
+                        '&:hover': { borderColor: '#60a5fa', bgcolor: 'rgba(96,165,250,0.08)' },
+                        '&.Mui-disabled': { color: 'rgba(96,165,250,0.3)', borderColor: 'rgba(96,165,250,0.2)' },
+                    }}
+                >
+                    {syncing ? 'Sincronizando...' : '🔄 Rodar sync'}
+                </Button>
             </Box>
 
             {/* Recalcular todos os pontos */}
@@ -420,7 +477,9 @@ export default function AdminClient({
                                     <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>{translateTeam(match.away_team)}</Typography>
                                     <Avatar src={getFlagUrl(match.away_team, 40)} sx={{ width: 24, height: 24 }} />
                                     <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, ml: 'auto' }}>
+                                        <span suppressHydrationWarning>
                                         {date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })} • {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}h
+                                    </span>
                                     </Typography>
                                 </Box>
                                 <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -463,17 +522,27 @@ export default function AdminClient({
                                     </Button>
                                     {s.status === 'completed' && (
                                         scoredMatchIds.has(match.id) ? (
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.5, py: 0.5, borderRadius: '8px', bgcolor: 'rgba(76,175,80,0.1)', border: '1px solid rgba(76,175,80,0.25)' }}>
-                                                <Typography sx={{ color: '#4caf50', fontSize: 11, fontWeight: 700 }}>✓ Pontos calculados</Typography>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.5, py: 0.5, borderRadius: '8px', bgcolor: 'rgba(76,175,80,0.1)', border: '1px solid rgba(76,175,80,0.25)' }}>
+                                                    <Typography sx={{ color: '#4caf50', fontSize: 11, fontWeight: 700 }}>✓ Pontos calculados</Typography>
+                                                </Box>
+                                                <Button
+                                                    onClick={() => handleProcessMatch(match.id)}
+                                                    disabled={calculatingMatch === match.id}
+                                                    size="small"
+                                                    sx={{ bgcolor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', fontWeight: 700, fontSize: 11, px: 1.5, borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', color: '#fff' }, '&.Mui-disabled': { opacity: 0.4 } }}
+                                                >
+                                                    {calculatingMatch === match.id ? <CircularProgress size={12} color="inherit" /> : '↻'}
+                                                </Button>
                                             </Box>
                                         ) : (
                                             <Button
-                                                onClick={() => handleCalculateScores(match.id)}
+                                                onClick={() => handleProcessMatch(match.id)}
                                                 disabled={calculatingMatch === match.id}
                                                 size="small"
                                                 sx={{ bgcolor: 'rgba(255,255,255,0.07)', color: '#fff', fontWeight: 700, fontSize: 12, px: 2, borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' }, '&.Mui-disabled': { opacity: 0.4 } }}
                                             >
-                                                {calculatingMatch === match.id ? <CircularProgress size={14} color="inherit" /> : '⚡ Calcular Pontos'}
+                                                {calculatingMatch === match.id ? <CircularProgress size={14} color="inherit" /> : '⚡ Stats + Pontos'}
                                             </Button>
                                         )
                                     )}

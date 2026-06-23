@@ -74,7 +74,14 @@ export default async function DashboardPage() {
     .order('assists', { ascending: false })
     .limit(5)
 
-  const showStats = !!(topScorers?.length || topAssists?.length)
+  const { data: teamStats } = await supabase
+    .from('team_stats')
+    .select('*')
+    .gt('yellow_cards', 0)
+    .order('yellow_cards', { ascending: false })
+    .limit(8)
+
+  const showStats = !!(topScorers?.length || topAssists?.length || teamStats?.length)
 
   return (
     <Box component="main" sx={{ maxWidth: 1200, mx: 'auto', px: 4, py: 6 }}>
@@ -197,6 +204,7 @@ export default async function DashboardPage() {
         <TournamentStats
           topScorers={topScorers ?? []}
           topAssists={topAssists ?? []}
+          teamStats={teamStats ?? []}
           isAdmin={false}
           showStats={showStats}
         />
@@ -385,6 +393,43 @@ function MatchCard({ match }: { match: any }) {
             </Typography>
           </Box>
         </Box>
+
+        {/* Cartões por time */}
+        {isCompleted && ((match.home_yellows ?? 0) > 0 || (match.home_reds ?? 0) > 0 || (match.away_yellows ?? 0) > 0 || (match.away_reds ?? 0) > 0) && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{translateTeam(match.home_team)}</Typography>
+              {(match.home_yellows ?? 0) > 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                  <Box sx={{ width: 8, height: 11, bgcolor: '#f5c518', borderRadius: '1px' }} />
+                  <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700 }}>{match.home_yellows}</Typography>
+                </Box>
+              )}
+              {(match.home_reds ?? 0) > 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                  <Box sx={{ width: 8, height: 11, bgcolor: '#ff4444', borderRadius: '1px' }} />
+                  <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700 }}>{match.home_reds}</Typography>
+                </Box>
+              )}
+            </Box>
+            <Typography sx={{ color: 'rgba(255,255,255,0.15)', fontSize: 11 }}>•</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{translateTeam(match.away_team)}</Typography>
+              {(match.away_yellows ?? 0) > 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                  <Box sx={{ width: 8, height: 11, bgcolor: '#f5c518', borderRadius: '1px' }} />
+                  <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700 }}>{match.away_yellows}</Typography>
+                </Box>
+              )}
+              {(match.away_reds ?? 0) > 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                  <Box sx={{ width: 8, height: 11, bgcolor: '#ff4444', borderRadius: '1px' }} />
+                  <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700 }}>{match.away_reds}</Typography>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        )}
       </Box>
 
       <Box sx={{
@@ -402,15 +447,20 @@ function MatchCard({ match }: { match: any }) {
   )
 }
 
+const PHASE_LABELS: Record<string, string> = {
+  '1H': '1º Tempo', 'HT': 'Intervalo', '2H': '2º Tempo',
+  'ET1': 'Prorrog.', 'ET2': 'Prorrog.', 'PEN': 'Pênaltis',
+}
+
 function translate(match: any) {
   switch (match.status) {
     case 'scheduled': return 'Em breve'
     case 'live':
     case 'in_play':
-    case 'playing': return 'Ao vivo'
+    case 'playing':
+      return match.phase && PHASE_LABELS[match.phase] ? PHASE_LABELS[match.phase] : 'Ao vivo'
     case 'halftime': return 'Intervalo'
     case 'delayed': return 'Atrasado'
-    case 'completed':
     case 'completed':
     case 'completes': return 'Finalizado'
     default: return match.status || ''

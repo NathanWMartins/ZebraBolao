@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache'
 import { getPointsForRound } from '@/lib/scoring'
+import { getMatchStatsAPI } from '@/lib/wc2026'
 
 async function checkAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -133,6 +134,97 @@ export async function updateMatch(id: string, status: string, homeScore: number 
   return { success: true }
 }
 
+export async function processMatchAndCalculate(matchId: string): Promise<{ goalsUpdated: number; poolsUpdated: number; statsNote: string }> {
+  const supabase = await checkAdmin()
+  const admin = createAdminClient()
+
+  // Busca o jogo no banco para pegar external_id e times
+  const { data: match } = await admin
+    .from('matches')
+    .select('id, external_id, home_team, away_team, home_team_code, away_team_code')
+    .eq('id', matchId)
+    .single()
+
+  if (!match) throw new Error('Jogo não encontrado.')
+
+  // Mapa código → nome completo (ex: "ARG" → "Argentina")
+  // Necessário porque a timeline da API usa código do time, não o nome completo
+  const teamCodeMap: Record<string, string> = {}
+  if (match.home_team_code) teamCodeMap[match.home_team_code] = match.home_team
+  if (match.away_team_code) teamCodeMap[match.away_team_code] = match.away_team
+  const resolveTeam = (codeOrName: string) => teamCodeMap[codeOrName] ?? codeOrName
+
+  // Busca stats da API (pode não estar disponível ainda)
+  let goalsUpdated = 0
+  let statsNote = ''
+
+  try {
+    const statsData = await getMatchStatsAPI(Number(match.external_id))
+
+    // Player stats: gols da timeline
+    const goalsByPlayer: Record<string, { team: string; goals: number }> = {}
+    for (const event of statsData.timeline ?? []) {
+      if (event.type === 'goal') {
+        const teamName = resolveTeam(event.team)
+        const key = `${event.player}__${teamName}`
+        if (!goalsByPlayer[key]) goalsByPlayer[key] = { team: teamName, goals: 0 }
+        goalsByPlayer[key].goals++
+      }
+    }
+
+    for (const [key, data] of Object.entries(goalsByPlayer)) {
+      const playerName = key.split('__')[0]
+      const { data: existing } = await admin
+        .from('player_stats')
+        .select('id, goals')
+        .eq('player_name', playerName)
+        .eq('team', data.team)
+        .maybeSingle()
+
+      if (existing) {
+        await admin.from('player_stats').update({ goals: existing.goals + data.goals }).eq('id', existing.id)
+      } else {
+        await admin.from('player_stats').insert({ player_name: playerName, team: data.team, goals: data.goals, assists: 0 })
+      }
+      goalsUpdated++
+    }
+
+    // Team stats: cartões
+    const s = statsData.stats
+    for (const [team, yellows, reds] of [
+      [match.home_team, s.home_yellows, s.home_reds],
+      [match.away_team, s.away_yellows, s.away_reds],
+    ] as [string, number, number][]) {
+      const { data: existing } = await admin.from('team_stats').select('id, yellow_cards, red_cards').eq('team', team).maybeSingle()
+      if (existing) {
+        await admin.from('team_stats').update({ yellow_cards: existing.yellow_cards + yellows, red_cards: existing.red_cards + reds }).eq('id', existing.id)
+      } else {
+        await admin.from('team_stats').insert({ team, yellow_cards: yellows, red_cards: reds })
+      }
+    }
+
+    // Salva cartões no jogo
+    await admin.from('matches').update({
+      home_yellows: s.home_yellows,
+      home_reds: s.home_reds,
+      away_yellows: s.away_yellows,
+      away_reds: s.away_reds,
+      stats_processed: true,
+    }).eq('id', matchId)
+
+  } catch (e: any) {
+    // Stats ainda não disponíveis na API (ex: 404) — prossegue só com cálculo de pontos
+    statsNote = ' (stats indisponíveis)'
+    console.warn(`Stats não disponíveis para match ${matchId}:`, e.message)
+  }
+
+  // Calcula pontos independente de ter stats
+  const { poolsUpdated } = await calculateScoresForMatch(matchId)
+
+  revalidatePath('/dashboard/admin')
+  return { goalsUpdated, poolsUpdated, statsNote }
+}
+
 export async function recalculateAllScores(): Promise<{ matchesProcessed: number; poolsUpdated: number }> {
   const supabase = await checkAdmin()
 
@@ -243,6 +335,19 @@ export async function calculateScoresForMatch(matchId: string): Promise<{ poolsU
 
   revalidatePath('/dashboard/admin')
   return { poolsUpdated }
+}
+
+export async function runSync(): Promise<Record<string, unknown>> {
+  await checkAdmin()
+  const secret = process.env.SYNC_SECRET
+  if (!secret) throw new Error('SYNC_SECRET não configurado')
+
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  const res = await fetch(`${baseUrl}/api/sync-matches`, {
+    headers: { Authorization: `Bearer ${secret}` },
+    cache: 'no-store',
+  })
+  return res.json()
 }
 
 export async function getSyncPaused(): Promise<boolean> {

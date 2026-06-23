@@ -63,7 +63,7 @@ function PlayerStatCard({ player, stat, statLabel, rank, isAdmin, statField }: {
   )
 }
 
-export default function TournamentStats({ topScorers, topAssists, isAdmin, showStats }: { topScorers: any[], topAssists: any[], isAdmin: boolean, showStats: boolean }) {
+export default function TournamentStats({ topScorers, topAssists, teamStats, isAdmin, showStats }: { topScorers: any[], topAssists: any[], teamStats: any[], isAdmin: boolean, showStats: boolean }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   
@@ -147,6 +147,41 @@ export default function TournamentStats({ topScorers, topAssists, isAdmin, showS
             )}
           </Box>
         </Box>
+
+        {/* Cartões por seleção */}
+        {teamStats && teamStats.length > 0 && (
+          <Box sx={{ bgcolor: 'rgba(0,0,0,0.5)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '12px', overflow: 'hidden' }}>
+            <Box sx={{ bgcolor: 'rgba(245,197,24,0.08)', px: 2, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ width: 10, height: 14, bgcolor: '#f5c518', borderRadius: '1px' }} />
+              <Typography sx={{ color: '#f5c518', fontSize: 13, fontWeight: 700, textTransform: 'uppercase' }}>Cartões</Typography>
+            </Box>
+            <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {teamStats.map((t: any, idx: number) => (
+                <Box key={t.team} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 14, fontWeight: 700, width: 14 }}>{idx + 1}</Typography>
+                    <TeamFlag teamName={t.team} size={20} />
+                    <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>{translateTeam(t.team)}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    {t.yellow_cards > 0 && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                        <Box sx={{ width: 9, height: 12, bgcolor: '#f5c518', borderRadius: '1px' }} />
+                        <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 700 }}>{t.yellow_cards}</Typography>
+                      </Box>
+                    )}
+                    {t.red_cards > 0 && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                        <Box sx={{ width: 9, height: 12, bgcolor: '#ff4444', borderRadius: '1px' }} />
+                        <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 700 }}>{t.red_cards}</Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        )}
       </Box>
 
       {/* Dialog para Adicionar Jogador */}
