@@ -135,7 +135,7 @@ export default function DashboardClient({ user, isAdmin }: Props) {
       {/* Sino de notificações */}
       <div ref={notifRef} style={{ position: 'relative' }}>
         <button
-          onClick={() => { setNotifOpen(v => !v); if (!notifOpen) markAllRead() }}
+          onClick={() => { setNotifOpen(v => !v); if (!notifOpen && unreadCount > 0) markAllRead() }}
           style={{
             position: 'relative',
             background: unreadCount > 0 ? 'rgba(201,148,10,0.12)' : 'none',
@@ -191,9 +191,12 @@ export default function DashboardClient({ user, isAdmin }: Props) {
         </button>
 
         {notifOpen && (
-          <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 30, width: 320, backgroundColor: '#1a1a19', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
+          <div style={{ position: 'fixed', top: 64, right: 12, left: 12, zIndex: 30, width: 'auto', maxWidth: 340, marginLeft: 'auto', backgroundColor: '#1a1a19', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
+            {/* Header */}
             <div style={{ padding: '12px 14px', borderBottom: '0.5px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>Notificações</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
+                Não lidas {unreadCount > 0 && <span style={{ color: '#C9940A' }}>({unreadCount})</span>}
+              </span>
               {unreadCount > 0 && (
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }} onClick={markAllRead}>
                   Marcar todas como lidas
@@ -201,34 +204,27 @@ export default function DashboardClient({ user, isAdmin }: Props) {
               )}
             </div>
 
-            <div style={{ maxHeight: 380, overflowY: 'auto' }}>
-              {notifications.length === 0 ? (
+            {/* Lista — só não lidas */}
+            <div style={{ maxHeight: 340, overflowY: 'auto' }}>
+              {unreadCount === 0 ? (
                 <div style={{ padding: '24px 14px', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>
-                  Nenhuma notificação ainda.
+                  Nenhuma notificação não lida.
                 </div>
               ) : (
-                notifications.map(notif => (
+                notifications.filter(n => !n.read).map(notif => (
                   <div
                     key={notif.id}
                     onClick={() => handleNotifClick(notif)}
-                    style={{
-                      padding: '12px 14px',
-                      borderBottom: '0.5px solid rgba(255,255,255,0.05)',
-                      cursor: notif.link ? 'pointer' : 'default',
-                      backgroundColor: notif.read ? 'transparent' : 'rgba(201,148,10,0.05)',
-                      transition: 'background-color 0.15s',
-                    }}
-                    onMouseEnter={e => { if (notif.link) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'rgba(255,255,255,0.04)' }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.backgroundColor = notif.read ? 'transparent' : 'rgba(201,148,10,0.05)' }}
+                    style={{ padding: '12px 14px', borderBottom: '0.5px solid rgba(255,255,255,0.05)', cursor: notif.link ? 'pointer' : 'default', backgroundColor: 'rgba(201,148,10,0.05)', transition: 'background-color 0.15s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.backgroundColor = 'rgba(255,255,255,0.06)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.backgroundColor = 'rgba(201,148,10,0.05)' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                      {!notif.read && (
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#C9940A', flexShrink: 0, marginTop: 5 }} />
-                      )}
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#C9940A', flexShrink: 0, marginTop: 5 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#fff' }}>{notif.title}</p>
                         <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>{notif.body}</p>
-                        <p style={{ margin: '4px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+                        <p style={{ margin: '4px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.25)' }} suppressHydrationWarning>
                           {new Date(notif.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
@@ -236,6 +232,19 @@ export default function DashboardClient({ user, isAdmin }: Props) {
                   </div>
                 ))
               )}
+            </div>
+
+            {/* Rodapé — link para histórico */}
+            <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.08)' }}>
+              <a
+                href="/dashboard/notifications"
+                onClick={() => setNotifOpen(false)}
+                style={{ display: 'block', padding: '11px 14px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.45)', textAlign: 'center', textDecoration: 'none', transition: 'color 0.15s' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = '#fff' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.45)' }}
+              >
+                Ver histórico completo →
+              </a>
             </div>
           </div>
         )}
