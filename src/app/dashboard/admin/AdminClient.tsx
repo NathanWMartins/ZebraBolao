@@ -29,6 +29,7 @@ interface Match {
     home_reds: number
     away_yellows: number
     away_reds: number
+    notifications_sent: boolean
 }
 
 interface PlayerStat {
@@ -74,6 +75,9 @@ export default function AdminClient({
     const [calculatingMatch, setCalculatingMatch] = useState<string | null>(null)
     const [calcResult, setCalcResult] = useState<Record<string, { ok: boolean, msg: string }>>({})
     const [scoredMatchIds, setScoredMatchIds] = useState<Set<string>>(new Set(initialScoredMatchIds))
+    const [notifiedMatchIds, setNotifiedMatchIds] = useState<Set<string>>(
+        new Set(matches.filter(m => m.notifications_sent).map(m => m.id))
+    )
     const [recalculating, setRecalculating] = useState(false)
     const [recalcResult, setRecalcResult] = useState<{ ok: boolean; msg: string } | null>(null)
 
@@ -104,6 +108,7 @@ export default function AdminClient({
         try {
             const res = await notifyMatchHits(notifModalMatchId)
             setNotifyResult({ ok: true, msg: `${res.notified} notificações enviadas` })
+            setNotifiedMatchIds(prev => new Set([...prev, notifModalMatchId]))
         } catch (e: any) {
             setNotifyResult({ ok: false, msg: e.message })
         } finally {
@@ -568,13 +573,21 @@ const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => a
                                                 >
                                                     {calculatingMatch === match.id ? <CircularProgress size={12} color="inherit" /> : '↻'}
                                                 </Button>
-                                                <Button
-                                                    onClick={() => openNotifModal(match.id)}
-                                                    size="small"
-                                                    sx={{ bgcolor: 'rgba(255,200,0,0.08)', color: '#f5c518', fontWeight: 700, fontSize: 11, px: 1.5, borderRadius: '8px', border: '1px solid rgba(245,197,24,0.25)', '&:hover': { bgcolor: 'rgba(245,197,24,0.15)' } }}
-                                                >
-                                                    🔔
-                                                </Button>
+                                                <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                                                    <Button
+                                                        onClick={() => openNotifModal(match.id)}
+                                                        size="small"
+                                                        sx={{
+                                                            bgcolor: notifiedMatchIds.has(match.id) ? 'rgba(76,175,80,0.08)' : 'rgba(255,200,0,0.08)',
+                                                            color: notifiedMatchIds.has(match.id) ? '#4caf50' : '#f5c518',
+                                                            fontWeight: 700, fontSize: 11, px: 1.5, borderRadius: '8px',
+                                                            border: `1px solid ${notifiedMatchIds.has(match.id) ? 'rgba(76,175,80,0.3)' : 'rgba(245,197,24,0.25)'}`,
+                                                            '&:hover': { bgcolor: notifiedMatchIds.has(match.id) ? 'rgba(76,175,80,0.15)' : 'rgba(245,197,24,0.15)' },
+                                                        }}
+                                                    >
+                                                        {notifiedMatchIds.has(match.id) ? '🔔✓' : '🔔'}
+                                                    </Button>
+                                                </Box>
                                             </Box>
                                         ) : (
                                             <Button

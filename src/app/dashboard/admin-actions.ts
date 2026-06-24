@@ -468,6 +468,9 @@ export async function notifyMatchHits(matchId: string): Promise<{ notified: numb
     }
   }
 
+  // Marca o jogo como notificado
+  await admin.from('matches').update({ notifications_sent: true }).eq('id', matchId)
+
   revalidatePath('/dashboard/admin')
   return { notified: hits.length }
 }
