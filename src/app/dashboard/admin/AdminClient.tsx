@@ -4,11 +4,11 @@ import React, { useState } from 'react'
 import {
     Box, Typography, IconButton, Card, Stack, CircularProgress,
     Select, MenuItem, TextField, Button, Avatar, Divider, Autocomplete,
-    Switch, FormControlLabel
+    Switch, FormControlLabel, Dialog, DialogTitle, DialogContent, DialogActions, Chip
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import Link from 'next/link'
-import { updateMatch, incrementStat, decrementStat, addPlayerStat, processMatchAndCalculate, recalculateAllScores, addTeamCard, decrementTeamCard, setSyncPaused, runSync, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry } from '../admin-actions'
+import { updateMatch, incrementStat, decrementStat, addPlayerStat, processMatchAndCalculate, recalculateAllScores, addTeamCard, decrementTeamCard, setSyncPaused, runSync, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry, getMatchHits, notifyMatchHits, MatchHit } from '../admin-actions'
 import { translateTeam } from '@/lib/teamTranslations'
 import { getFlagUrl } from '@/lib/teamFlags'
 import TeamFlag from '@/app/components/TeamFlag'
@@ -76,6 +76,40 @@ export default function AdminClient({
     const [scoredMatchIds, setScoredMatchIds] = useState<Set<string>>(new Set(initialScoredMatchIds))
     const [recalculating, setRecalculating] = useState(false)
     const [recalcResult, setRecalcResult] = useState<{ ok: boolean; msg: string } | null>(null)
+
+    // Modal de notificações por jogo
+    const [notifModalMatchId, setNotifModalMatchId] = useState<string | null>(null)
+    const [notifModalHits, setNotifModalHits] = useState<MatchHit[]>([])
+    const [loadingHits, setLoadingHits] = useState(false)
+    const [notifying, setNotifying] = useState(false)
+    const [notifyResult, setNotifyResult] = useState<{ ok: boolean; msg: string } | null>(null)
+
+    const openNotifModal = async (matchId: string) => {
+        setNotifModalMatchId(matchId)
+        setNotifModalHits([])
+        setNotifyResult(null)
+        setLoadingHits(true)
+        try {
+            const hits = await getMatchHits(matchId)
+            setNotifModalHits(hits)
+        } finally {
+            setLoadingHits(false)
+        }
+    }
+
+    const handleNotifyAll = async () => {
+        if (!notifModalMatchId) return
+        setNotifying(true)
+        setNotifyResult(null)
+        try {
+            const res = await notifyMatchHits(notifModalMatchId)
+            setNotifyResult({ ok: true, msg: `${res.notified} notificações enviadas` })
+        } catch (e: any) {
+            setNotifyResult({ ok: false, msg: e.message })
+        } finally {
+            setNotifying(false)
+        }
+    }
 
     const handleRecalculateAll = async () => {
         setRecalculating(true)
@@ -534,6 +568,13 @@ const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => a
                                                 >
                                                     {calculatingMatch === match.id ? <CircularProgress size={12} color="inherit" /> : '↻'}
                                                 </Button>
+                                                <Button
+                                                    onClick={() => openNotifModal(match.id)}
+                                                    size="small"
+                                                    sx={{ bgcolor: 'rgba(255,200,0,0.08)', color: '#f5c518', fontWeight: 700, fontSize: 11, px: 1.5, borderRadius: '8px', border: '1px solid rgba(245,197,24,0.25)', '&:hover': { bgcolor: 'rgba(245,197,24,0.15)' } }}
+                                                >
+                                                    🔔
+                                                </Button>
                                             </Box>
                                         ) : (
                                             <Button
@@ -566,6 +607,62 @@ const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => a
                     })}
                 </Stack>
             )}
+
+            {/* Modal de notificações por jogo */}
+            <Dialog
+                open={!!notifModalMatchId}
+                onClose={() => setNotifModalMatchId(null)}
+                slotProps={{ paper: { sx: { bgcolor: '#161616', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', minWidth: 340, maxWidth: 480 } } }}
+            >
+                <DialogTitle sx={{ color: '#fff', fontWeight: 800, fontSize: 16, pb: 1 }}>
+                    🔔 Quem acertou?
+                </DialogTitle>
+                <DialogContent sx={{ pt: 0 }}>
+                    {loadingHits ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                            <CircularProgress size={24} sx={{ color: '#C9940A' }} />
+                        </Box>
+                    ) : notifModalHits.length === 0 ? (
+                        <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, py: 2 }}>
+                            Nenhum palpite certo neste jogo ainda.
+                        </Typography>
+                    ) : (
+                        <Stack spacing={1} sx={{ mt: 1 }}>
+                            {notifModalHits.map((hit, i) => (
+                                <Box key={i} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1.5, py: 1, borderRadius: '10px', bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                                    <Box>
+                                        <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>{hit.userName}</Typography>
+                                        <Typography sx={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>{hit.poolName}</Typography>
+                                    </Box>
+                                    <Chip
+                                        label={hit.prediction}
+                                        size="small"
+                                        sx={{ bgcolor: 'rgba(76,175,80,0.15)', color: '#4caf50', fontWeight: 700, fontSize: 11, border: '1px solid rgba(76,175,80,0.3)' }}
+                                    />
+                                </Box>
+                            ))}
+                        </Stack>
+                    )}
+                    {notifyResult && (
+                        <Typography sx={{ fontSize: 12, mt: 2, color: notifyResult.ok ? '#4caf50' : '#ff6b6b' }}>
+                            {notifyResult.ok ? '✓' : '✗'} {notifyResult.msg}
+                        </Typography>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+                    <Button onClick={() => setNotifModalMatchId(null)} sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 600, fontSize: 13, textTransform: 'none' }}>
+                        Fechar
+                    </Button>
+                    <Button
+                        onClick={handleNotifyAll}
+                        disabled={notifying || notifModalHits.length === 0 || loadingHits}
+                        variant="contained"
+                        sx={{ bgcolor: '#C9940A', color: '#000', fontWeight: 700, fontSize: 13, textTransform: 'none', borderRadius: '10px', px: 3, '&:hover': { bgcolor: '#E6AC10' }, '&.Mui-disabled': { bgcolor: 'rgba(201,148,10,0.3)' } }}
+                    >
+                        {notifying ? <CircularProgress size={16} color="inherit" /> : `Notificar ${notifModalHits.length > 0 ? `(${notifModalHits.length})` : 'todos'}`}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Stats */}
             {section === 'stats' && (

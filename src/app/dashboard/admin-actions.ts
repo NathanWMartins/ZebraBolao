@@ -255,10 +255,9 @@ export async function recalculateAllScores(): Promise<{ matchesProcessed: number
 export async function calculateScoresForMatch(matchId: string): Promise<{ poolsUpdated: number }> {
   const supabase = await checkAdmin()
 
-  // Busca todos os bolões que contêm este jogo
   const { data: pools, error: poolsError } = await supabase
     .from('pools')
-    .select('id, type, group_id, match_ids')
+    .select('id, name, type, group_id, match_ids')
 
   if (poolsError || !pools) throw new Error('Erro ao buscar bolões.')
 
@@ -268,11 +267,9 @@ export async function calculateScoresForMatch(matchId: string): Promise<{ poolsU
 
   if (affectedPools.length === 0) return { poolsUpdated: 0 }
 
-  // Para cada bolão afetado, recalcula o total completo do zero
   let poolsUpdated = 0
 
   for (const pool of affectedPools) {
-    // Busca todos os jogos do bolão que já têm placar (inclui round para pontuação)
     const { data: matches } = await supabase
       .from('matches')
       .select('id, home_score, away_score, status, round')
@@ -284,7 +281,6 @@ export async function calculateScoresForMatch(matchId: string): Promise<{ poolsU
 
     if (completedMatches.length === 0) continue
 
-    // Busca todos os palpites do bolão
     const { data: predictions } = await supabase
       .from('predictions')
       .select('user_id, match_id, prediction')
@@ -292,18 +288,17 @@ export async function calculateScoresForMatch(matchId: string): Promise<{ poolsU
 
     if (!predictions || predictions.length === 0) continue
 
-    // Recalcula pontos do zero por usuário
     const userPoints: Record<string, number> = {}
 
-    for (const match of completedMatches) {
-      const h = match.home_score as number
-      const a = match.away_score as number
+    for (const m of completedMatches) {
+      const h = m.home_score as number
+      const a = m.away_score as number
       const actualResult = h > a ? 'Time A' : a > h ? 'Time B' : 'Empate'
       const exactScore = `${h}-${a}`
-      const pts = getPointsForRound(match.round)
+      const pts = getPointsForRound(m.round)
 
       for (const pred of predictions) {
-        if (pred.match_id !== match.id) continue
+        if (pred.match_id !== m.id) continue
         if (!(pred.user_id in userPoints)) userPoints[pred.user_id] = 0
 
         if (pool.type === 'score') {
@@ -314,7 +309,6 @@ export async function calculateScoresForMatch(matchId: string): Promise<{ poolsU
       }
     }
 
-    // Substitui os scores do bolão (delete + insert para garantir consistência)
     const scoredMatchIds = completedMatches.map((m: any) => m.id)
 
     for (const [userId, points] of Object.entries(userPoints)) {
@@ -335,6 +329,147 @@ export async function calculateScoresForMatch(matchId: string): Promise<{ poolsU
 
   revalidatePath('/dashboard/admin')
   return { poolsUpdated }
+}
+
+// Retorna quem acertou o jogo, agrupado por bolão
+export type MatchHit = {
+  userId: string
+  userName: string
+  poolId: string
+  poolName: string
+  groupId: string
+  prediction: string
+}
+
+export async function getMatchHits(matchId: string): Promise<MatchHit[]> {
+  await checkAdmin()
+  const admin = createAdminClient()
+
+  const { data: match } = await admin
+    .from('matches')
+    .select('id, home_score, away_score, round')
+    .eq('id', matchId)
+    .single()
+
+  if (!match || match.home_score === null) return []
+
+  const h = match.home_score as number
+  const a = match.away_score as number
+  const actualResult = h > a ? 'Time A' : a > h ? 'Time B' : 'Empate'
+  const exactScore = `${h}-${a}`
+
+  const { data: pools } = await admin
+    .from('pools')
+    .select('id, name, type, group_id, match_ids')
+
+  const affectedPools = (pools ?? []).filter((p: any) =>
+    Array.isArray(p.match_ids) && p.match_ids.includes(matchId)
+  )
+
+  const hits: MatchHit[] = []
+
+  for (const pool of affectedPools) {
+    const { data: predictions } = await admin
+      .from('predictions')
+      .select('user_id, prediction')
+      .eq('pool_id', pool.id)
+      .eq('match_id', matchId)
+
+    for (const pred of (predictions ?? [])) {
+      const isHit = pool.type === 'score'
+        ? pred.prediction === exactScore
+        : pred.prediction === actualResult
+
+      if (!isHit) continue
+
+      // Busca nome do usuário (tenta profiles, cai em auth.users)
+      const { data: profile } = await admin
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', pred.user_id)
+        .maybeSingle()
+
+      let userName = profile?.full_name ?? profile?.email ?? null
+      if (!userName) {
+        const { data: authUser } = await admin.auth.admin.getUserById(pred.user_id)
+        userName = authUser?.user?.user_metadata?.full_name
+          ?? authUser?.user?.email
+          ?? pred.user_id
+      }
+
+      hits.push({
+        userId: pred.user_id,
+        userName,
+        poolId: pool.id,
+        poolName: pool.name,
+        groupId: pool.group_id,
+        prediction: pred.prediction,
+      })
+    }
+  }
+
+  return hits
+}
+
+export async function notifyMatchHits(matchId: string): Promise<{ notified: number }> {
+  await checkAdmin()
+  const admin = createAdminClient()
+
+  const { data: match } = await admin
+    .from('matches')
+    .select('home_team, away_team, home_score, away_score')
+    .eq('id', matchId)
+    .single()
+
+  if (!match) throw new Error('Jogo não encontrado')
+
+  const hits = await getMatchHits(matchId)
+  if (hits.length === 0) return { notified: 0 }
+
+  const matchLabel = `${match.home_team} x ${match.away_team}`
+
+  // Ranking antes
+  const { data: rankingBefore } = await admin
+    .from('global_ranking_participants')
+    .select('user_id, total_points')
+    .order('total_points', { ascending: false })
+  const rankBefore: Record<string, number> = {}
+  ;(rankingBefore ?? []).forEach((r: any, i: number) => { rankBefore[r.user_id] = i + 1 })
+
+  // Envia notificação de acerto para cada hit
+  for (const hit of hits) {
+    await admin.from('notifications').insert({
+      user_id: hit.userId,
+      type: 'hit',
+      title: '🎯 Palpite certo!',
+      body: `Você acertou ${matchLabel} no bolão "${hit.poolName}"`,
+      link: `/dashboard/groups/${hit.groupId}/pools/${hit.poolId}`,
+    })
+  }
+
+  // Ranking depois — notifica subidas
+  const { data: rankingAfter } = await admin
+    .from('global_ranking_participants')
+    .select('user_id, total_points')
+    .order('total_points', { ascending: false })
+
+  for (let i = 0; i < (rankingAfter ?? []).length; i++) {
+    const r = (rankingAfter ?? [])[i]
+    const newRank = i + 1
+    const oldRank = rankBefore[r.user_id]
+    if (oldRank && newRank < oldRank) {
+      await admin.from('notifications').insert({
+        user_id: r.user_id,
+        type: 'ranking_up',
+        title: '📈 Você subiu no ranking!',
+        body: `Você foi do ${oldRank}º para o ${newRank}º lugar no ranking geral.`,
+        link: '/dashboard/ranking',
+      })
+    }
+  }
+
+  revalidatePath('/dashboard/admin')
+  return { notified: hits.length }
 }
 
 export async function runSync(): Promise<Record<string, unknown>> {
