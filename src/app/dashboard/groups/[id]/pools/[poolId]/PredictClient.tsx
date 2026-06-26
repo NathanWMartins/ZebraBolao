@@ -65,6 +65,8 @@ interface PredictClientProps {
   initialPredictions: any[]
   initialSpecialPredictions: any[]
   allTeams: string[]
+  initialTab?: 'pending' | 'finished'
+  scrollToMatchId?: string
 }
 
 const SPECIAL_BET_LABELS: Record<string, string> = {
@@ -80,7 +82,7 @@ const TEAM_BETS = ['champion', 'runner_up', 'third_place', 'most_cards']
 const PLAYER_BETS = ['top_scorer', 'top_assist']
 
 
-export default function PredictClient({ groupId, poolId, poolName, poolType, poolStatus, specialBets, matches, initialPredictions, initialSpecialPredictions, allTeams }: PredictClientProps) {
+export default function PredictClient({ groupId, poolId, poolName, poolType, poolStatus, specialBets, matches, initialPredictions, initialSpecialPredictions, allTeams, initialTab, scrollToMatchId }: PredictClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -147,13 +149,17 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
   // Verificar se o usuário já tem palpites salvos
   const alreadyPredicted = initialPredictions.length > 0
 
-  // Tab: 'pending' | 'finished' — inicializa pela query string ?tab=finished
-  const [matchTab, setMatchTab] = useState<'pending' | 'finished'>(() => {
-    if (typeof window !== 'undefined') {
-      return new URLSearchParams(window.location.search).get('tab') === 'finished' ? 'finished' : 'pending'
-    }
-    return 'pending'
-  })
+  const [matchTab, setMatchTab] = useState<'pending' | 'finished'>(initialTab ?? 'pending')
+
+  useEffect(() => {
+    if (!scrollToMatchId) return
+    // Aguarda a aba renderizar antes de scrollar
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`match-${scrollToMatchId}`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [scrollToMatchId])
 
   // Inicializar estado dos palpites
   const [predictions, setPredictions] = useState<Prediction[]>(() => {
@@ -580,7 +586,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
               const isDisabled = isStarted
 
               return (
-                <Card key={match.id} sx={{
+                <Card key={match.id} id={`match-${match.id}`} sx={{
                   bgcolor: isHit
                     ? 'rgba(99,202,132,0.04)'
                     : isMiss ? 'rgba(255,80,80,0.03)' : 'rgba(12,12,12)',

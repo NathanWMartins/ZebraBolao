@@ -119,7 +119,7 @@ export default function MembersListClient({
                 {canRemove && (
                   <Box sx={{ flexShrink: 0 }}>
                     {isRemoving ? (
-                      <CircularProgress size={18} sx={{ color: '#f87171' }} />
+                      <CircularProgress size={20} sx={{ color: '#f87171' }} />
                     ) : isConfirming ? (
                       <Stack direction="row" spacing={0.5}>
                         <Tooltip title="Confirmar remoção">

@@ -4,8 +4,9 @@ import PredictClient from './PredictClient'
 import { Box, Typography, Button } from '@mui/material'
 import Link from 'next/link'
 
-export default async function PoolPredictPage(props: { params: Promise<{ id: string, poolId: string }> }) {
+export default async function PoolPredictPage(props: { params: Promise<{ id: string, poolId: string }>, searchParams: Promise<{ tab?: string, match?: string }> }) {
   const { id, poolId } = await props.params
+  const { tab, match: scrollToMatch } = await props.searchParams
   const supabase = await createServerSupabaseClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -91,6 +92,8 @@ export default async function PoolPredictPage(props: { params: Promise<{ id: str
       initialPredictions={predictions || []}
       initialSpecialPredictions={specialPredictions || []}
       allTeams={allTeams}
+      initialTab={tab === 'finished' ? 'finished' : 'pending'}
+      scrollToMatchId={scrollToMatch}
     />
   )
 }

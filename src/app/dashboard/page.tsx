@@ -367,7 +367,7 @@ function MatchCard({ match }: { match: any }) {
         <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Time casa */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            <TeamFlag teamName={match.home_team} size={18} />
+            <TeamFlag teamName={match.home_team} size={20} />
             <Typography sx={{ fontSize: { xs: 13, md: 15 }, fontWeight: 600, color: '#fff' }}>
               {translateTeam(match.home_team)}
             </Typography>
@@ -410,7 +410,7 @@ function MatchCard({ match }: { match: any }) {
                 </>}
               </Box>
             )}
-            <TeamFlag teamName={match.away_team} size={18} />
+            <TeamFlag teamName={match.away_team} size={20} />
             <Typography sx={{ fontSize: { xs: 13, md: 15 }, fontWeight: 600, color: '#fff' }}>
               {translateTeam(match.away_team)}
             </Typography>
