@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react'
+import { keyframes } from '@mui/system'
 import {
   Box,
   Typography,
@@ -82,6 +83,12 @@ const TEAM_BETS = ['champion', 'runner_up', 'third_place', 'most_cards']
 const PLAYER_BETS = ['top_scorer', 'top_assist']
 
 
+const glowPulse = keyframes`
+  0%   { box-shadow: 0 0 12px rgba(99,202,132,0.2); border-color: rgba(99,202,132,0.3); }
+  50%  { box-shadow: 0 0 36px rgba(99,202,132,0.6), 0 0 60px rgba(99,202,132,0.2); border-color: rgba(99,202,132,0.9); }
+  100% { box-shadow: 0 0 12px rgba(99,202,132,0.2); border-color: rgba(99,202,132,0.3); }
+`
+
 export default function PredictClient({ groupId, poolId, poolName, poolType, poolStatus, specialBets, matches, initialPredictions, initialSpecialPredictions, allTeams, initialTab, scrollToMatchId }: PredictClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -150,16 +157,27 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
   const alreadyPredicted = initialPredictions.length > 0
 
   const [matchTab, setMatchTab] = useState<'pending' | 'finished'>(initialTab ?? 'pending')
+  const [glowMatchId, setGlowMatchId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!scrollToMatchId) return
-    // Aguarda a aba renderizar antes de scrollar
-    const timer = setTimeout(() => {
-      const el = document.getElementById(`match-${scrollToMatchId}`)
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [scrollToMatchId])
+    const params = new URLSearchParams(window.location.search)
+    const matchId = params.get('match')
+    if (!matchId) return
+
+    let attempts = 0
+    const tryScroll = () => {
+      const el = document.getElementById(`match-${matchId}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setGlowMatchId(matchId)
+        setTimeout(() => setGlowMatchId(null), 3000)
+      } else if (attempts < 10) {
+        attempts++
+        setTimeout(tryScroll, 200)
+      }
+    }
+    setTimeout(tryScroll, 200)
+  }, [])
 
   // Inicializar estado dos palpites
   const [predictions, setPredictions] = useState<Prediction[]>(() => {
@@ -585,21 +603,29 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
               const selectedGold = '#C9940A'
               const isDisabled = isStarted
 
+              const isGlowing = glowMatchId === match.id
               return (
                 <Card key={match.id} id={`match-${match.id}`} sx={{
-                  bgcolor: isHit
-                    ? 'rgba(99,202,132,0.04)'
-                    : isMiss ? 'rgba(255,80,80,0.03)' : 'rgba(12,12,12)',
-                  border: isHit
-                    ? '1px solid rgba(99,202,132,0.45)'
-                    : isMiss
-                      ? '1px solid rgba(255,80,80,0.2)'
-                      : '1px solid rgba(255,255,255,0.05)',
+                  bgcolor: isGlowing
+                    ? 'rgba(99,202,132,0.10)'
+                    : isHit
+                      ? 'rgba(99,202,132,0.04)'
+                      : isMiss ? 'rgba(255,80,80,0.03)' : 'rgba(12,12,12)',
+                  border: isGlowing
+                    ? '1px solid rgba(99,202,132,0.8)'
+                    : isHit
+                      ? '1px solid rgba(99,202,132,0.45)'
+                      : isMiss
+                        ? '1px solid rgba(255,80,80,0.2)'
+                        : '1px solid rgba(255,255,255,0.05)',
                   borderRadius: '16px',
                   overflow: 'hidden',
-                  boxShadow: isHit
-                    ? '0 4px 20px rgba(99,202,132,0.08)'
-                    : '0 4px 20px rgba(0,0,0,0.3)',
+                  animation: isGlowing ? `${glowPulse} 0.8s ease-in-out infinite` : 'none',
+                  boxShadow: isGlowing
+                    ? undefined
+                    : isHit
+                      ? '0 4px 20px rgba(99,202,132,0.08)'
+                      : '0 4px 20px rgba(0,0,0,0.3)',
                   transition: 'all 0.3s ease',
                   maxWidth: 600,
                   mx: 'auto',

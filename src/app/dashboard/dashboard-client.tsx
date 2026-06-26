@@ -84,7 +84,11 @@ export default function DashboardClient({ user, isAdmin }: Props) {
       setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n))
     }
     setNotifOpen(false)
-    if (notif.link) router.push(notif.link)
+    if (notif.link) {
+      const url = new URL(notif.link, window.location.origin)
+      url.searchParams.set('_t', Date.now().toString())
+      window.location.href = url.toString()
+    }
   }
 
   useEffect(() => {

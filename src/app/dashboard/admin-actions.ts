@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache'
 import { getPointsForRound } from '@/lib/scoring'
 import { getMatchStatsAPI } from '@/lib/wc2026'
+import { translateTeam } from '@/lib/teamTranslations'
 
 async function checkAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -426,7 +427,7 @@ export async function notifyMatchHits(matchId: string): Promise<{ notified: numb
   const hits = await getMatchHits(matchId)
   if (hits.length === 0) return { notified: 0 }
 
-  const matchLabel = `${match.home_team} x ${match.away_team}`
+  const matchLabel = `${translateTeam(match.home_team)} x ${translateTeam(match.away_team)}`
 
   // Ranking antes
   const { data: rankingBefore } = await admin

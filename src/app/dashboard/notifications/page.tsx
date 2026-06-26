@@ -60,7 +60,7 @@ export default function NotificationsPage() {
       await supabase.from('notifications').update({ read: true }).eq('id', notif.id)
       setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n))
     }
-    if (notif.link) router.push(notif.link)
+    if (notif.link) window.location.href = notif.link
   }
 
   const markAllRead = async () => {
