@@ -74,12 +74,13 @@ export default async function DashboardPage() {
     .order('assists', { ascending: false })
     .limit(5)
 
-  const { data: teamStats } = await supabase
+  const { data: teamStatsRaw } = await supabase
     .from('team_stats')
     .select('*')
-    .gt('yellow_cards', 0)
-    .order('yellow_cards', { ascending: false })
-    .limit(8)
+    .or('yellow_cards.gt.0,red_cards.gt.0')
+  const teamStats = (teamStatsRaw ?? [])
+    .sort((a: any, b: any) => (b.yellow_cards + b.red_cards) - (a.yellow_cards + a.red_cards))
+    .slice(0, 8)
 
   const showStats = !!(topScorers?.length || topAssists?.length || teamStats?.length)
 
@@ -362,74 +363,60 @@ function MatchCard({ match }: { match: any }) {
           {match.round !== 'group' ? match.round : 'Grupo ' + match.group_name} • {matchTimeBRT}h
         </Typography>
 
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <TeamFlag teamName={match.home_team} size={20} />
-            <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 500, color: '#fff' }}>
+        {/* Times + placar + cartões inline */}
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Time casa */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <TeamFlag teamName={match.home_team} size={18} />
+            <Typography sx={{ fontSize: { xs: 13, md: 15 }, fontWeight: 600, color: '#fff' }}>
               {translateTeam(match.home_team)}
             </Typography>
+            {isCompleted && (match.home_yellows > 0 || match.home_reds > 0) && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                {match.home_yellows > 0 && <>
+                  <Box sx={{ width: 7, height: 10, bgcolor: '#f5c518', borderRadius: '1px' }} />
+                  <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: 700 }}>{match.home_yellows}</Typography>
+                </>}
+                {match.home_reds > 0 && <>
+                  <Box sx={{ width: 7, height: 10, bgcolor: '#ff4444', borderRadius: '1px', ml: 0.3 }} />
+                  <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: 700 }}>{match.home_reds}</Typography>
+                </>}
+              </Box>
+            )}
           </Box>
 
+          {/* Placar ou vs */}
           {match.home_score !== null && match.away_score !== null ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.05)', px: 1.5, py: 0.5, borderRadius: '6px' }}>
-              <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 700, color: '#C9940A' }}>
-                {match.home_score}
-              </Typography>
-              <Typography sx={{ fontSize: { xs: 10, md: 12 }, color: 'rgba(255,255,255,0.3)' }}>x</Typography>
-              <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 700, color: '#C9940A' }}>
-                {match.away_score}
-              </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, bgcolor: 'rgba(255,255,255,0.05)', px: 1.25, py: 0.4, borderRadius: '6px' }}>
+              <Typography sx={{ fontSize: { xs: 13, md: 15 }, fontWeight: 700, color: '#C9940A' }}>{match.home_score}</Typography>
+              <Typography sx={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>x</Typography>
+              <Typography sx={{ fontSize: { xs: 13, md: 15 }, fontWeight: 700, color: '#C9940A' }}>{match.away_score}</Typography>
             </Box>
           ) : (
-            <Typography sx={{ fontSize: { xs: 10, md: 14 }, color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>
-              vs
-            </Typography>
+            <Typography sx={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>vs</Typography>
           )}
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <TeamFlag teamName={match.away_team} size={20} />
-            <Typography sx={{ fontSize: { xs: 13, md: 16 }, fontWeight: 500, color: '#fff' }}>
+          {/* Time fora */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            {isCompleted && (match.away_yellows > 0 || match.away_reds > 0) && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                {match.away_yellows > 0 && <>
+                  <Box sx={{ width: 7, height: 10, bgcolor: '#f5c518', borderRadius: '1px' }} />
+                  <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: 700 }}>{match.away_yellows}</Typography>
+                </>}
+                {match.away_reds > 0 && <>
+                  <Box sx={{ width: 7, height: 10, bgcolor: '#ff4444', borderRadius: '1px', ml: 0.3 }} />
+                  <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: 700 }}>{match.away_reds}</Typography>
+                </>}
+              </Box>
+            )}
+            <TeamFlag teamName={match.away_team} size={18} />
+            <Typography sx={{ fontSize: { xs: 13, md: 15 }, fontWeight: 600, color: '#fff' }}>
               {translateTeam(match.away_team)}
             </Typography>
           </Box>
         </Box>
 
-        {/* Cartões por time */}
-        {isCompleted && ((match.home_yellows ?? 0) > 0 || (match.home_reds ?? 0) > 0 || (match.away_yellows ?? 0) > 0 || (match.away_reds ?? 0) > 0) && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-              <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{translateTeam(match.home_team)}</Typography>
-              {(match.home_yellows ?? 0) > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                  <Box sx={{ width: 8, height: 11, bgcolor: '#f5c518', borderRadius: '1px' }} />
-                  <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700 }}>{match.home_yellows}</Typography>
-                </Box>
-              )}
-              {(match.home_reds ?? 0) > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                  <Box sx={{ width: 8, height: 11, bgcolor: '#ff4444', borderRadius: '1px' }} />
-                  <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700 }}>{match.home_reds}</Typography>
-                </Box>
-              )}
-            </Box>
-            <Typography sx={{ color: 'rgba(255,255,255,0.15)', fontSize: 11 }}>•</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-              <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{translateTeam(match.away_team)}</Typography>
-              {(match.away_yellows ?? 0) > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                  <Box sx={{ width: 8, height: 11, bgcolor: '#f5c518', borderRadius: '1px' }} />
-                  <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700 }}>{match.away_yellows}</Typography>
-                </Box>
-              )}
-              {(match.away_reds ?? 0) > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                  <Box sx={{ width: 8, height: 11, bgcolor: '#ff4444', borderRadius: '1px' }} />
-                  <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700 }}>{match.away_reds}</Typography>
-                </Box>
-              )}
-            </Box>
-          </Box>
-        )}
       </Box>
 
       <Box sx={{
@@ -446,6 +433,7 @@ function MatchCard({ match }: { match: any }) {
     </Box>
   )
 }
+
 
 const PHASE_LABELS: Record<string, string> = {
   '1H': '1º Tempo', 'HT': 'Intervalo', '2H': '2º Tempo',

@@ -147,8 +147,13 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
   // Verificar se o usuário já tem palpites salvos
   const alreadyPredicted = initialPredictions.length > 0
 
-  // Tab: 'pending' | 'finished'
-  const [matchTab, setMatchTab] = useState<'pending' | 'finished'>('pending')
+  // Tab: 'pending' | 'finished' — inicializa pela query string ?tab=finished
+  const [matchTab, setMatchTab] = useState<'pending' | 'finished'>(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('tab') === 'finished' ? 'finished' : 'pending'
+    }
+    return 'pending'
+  })
 
   // Inicializar estado dos palpites
   const [predictions, setPredictions] = useState<Prediction[]>(() => {

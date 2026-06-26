@@ -443,7 +443,7 @@ export async function notifyMatchHits(matchId: string): Promise<{ notified: numb
       type: 'hit',
       title: '🎯 Palpite certo!',
       body: `Você acertou ${matchLabel} no bolão "${hit.poolName}"`,
-      link: `/dashboard/groups/${hit.groupId}/pools/${hit.poolId}`,
+      link: `/dashboard/groups/${hit.groupId}/pools/${hit.poolId}?tab=finished`,
     })
   }
 

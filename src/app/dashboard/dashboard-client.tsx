@@ -135,7 +135,7 @@ export default function DashboardClient({ user, isAdmin }: Props) {
       {/* Sino de notificações */}
       <div ref={notifRef} style={{ position: 'relative' }}>
         <button
-          onClick={() => { setNotifOpen(v => !v); if (!notifOpen && unreadCount > 0) markAllRead() }}
+          onClick={() => setNotifOpen(v => !v)}
           style={{
             position: 'relative',
             background: unreadCount > 0 ? 'rgba(201,148,10,0.12)' : 'none',
