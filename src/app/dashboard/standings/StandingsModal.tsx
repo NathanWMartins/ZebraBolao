@@ -14,6 +14,7 @@ interface Props {
 
 export default function StandingsModal({ open, onClose }: Props) {
   const [standings, setStandings] = useState<StandingEntry[]>([])
+  const [knockoutMatches, setKnockoutMatches] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
@@ -23,7 +24,8 @@ export default function StandingsModal({ open, onClose }: Props) {
       fetch('/api/standings')
         .then(r => r.json())
         .then(data => {
-          setStandings(data)
+          setStandings(data.standings ?? [])
+          setKnockoutMatches(data.knockoutMatches ?? [])
           setLoaded(true)
         })
         .finally(() => setLoading(false))
@@ -66,7 +68,7 @@ export default function StandingsModal({ open, onClose }: Props) {
             <CircularProgress size={24} sx={{ color: '#C9940A' }} />
           </Box>
         ) : (
-          <StandingsClient standings={standings} compact />
+          <StandingsClient standings={standings} knockoutMatches={knockoutMatches} compact />
         )}
       </DialogContent>
     </Dialog>

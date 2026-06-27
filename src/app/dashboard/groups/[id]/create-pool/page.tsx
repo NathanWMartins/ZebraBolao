@@ -22,11 +22,13 @@ export default async function CreatePoolPage(props: { params: Promise<{ id: stri
     redirect(`/dashboard/groups/${id}`)
   }
 
-  // Buscar apenas jogos agendados para seleção
+  // Buscar apenas jogos agendados e com times definidos para seleção
   const { data: matches } = await supabase
     .from('matches')
     .select('*')
     .eq('status', 'scheduled')
+    .not('home_team', 'is', null)
+    .not('away_team', 'is', null)
     .order('match_date', { ascending: true })
 
   return (

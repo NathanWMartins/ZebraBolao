@@ -68,7 +68,7 @@ export const TEAM_TRANSLATIONS: Record<string, string> = {
     'Iraq': 'Iraque',
 }
 
-export function translateTeam(teamName: string): string {
-    if (!teamName) return ''
+export function translateTeam(teamName: string | null | undefined): string {
+    if (!teamName) return 'A definir'
     return TEAM_TRANSLATIONS[teamName] ?? teamName
 }

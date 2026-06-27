@@ -31,8 +31,8 @@ const SPECIAL_BET_LABELS: Record<string, string> = {
 
 interface Match {
   id: string
-  home_team: string
-  away_team: string
+  home_team: string | null
+  away_team: string | null
   match_date: string
   home_team_flag?: string
   away_team_flag?: string

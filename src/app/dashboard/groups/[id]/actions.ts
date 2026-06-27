@@ -471,6 +471,45 @@ export async function leaveGroup(groupId: string) {
   return { success: true }
 }
 
+export async function addMatchesToPool(poolId: string, matchIds: string[]) {
+  const supabase = await createServerSupabaseClient()
+  const supabaseAdmin = createAdminClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Usuário não autenticado.' }
+
+  // Verificar que é dono do grupo
+  const { data: pool } = await supabaseAdmin.from('pools').select('group_id, match_ids').eq('id', poolId).single()
+  if (!pool) return { error: 'Bolão não encontrado.' }
+
+  const { data: group } = await supabase.from('groups').select('owner_id').eq('id', pool.group_id).single()
+  if (!group || group.owner_id !== user.id) return { error: 'Apenas o administrador pode adicionar jogos ao bolão.' }
+
+  // Só aceitar jogos que ainda não começaram e com times definidos
+  const now = new Date().toISOString()
+  const { data: validMatches } = await supabaseAdmin
+    .from('matches')
+    .select('id')
+    .in('id', matchIds)
+    .eq('status', 'scheduled')
+    .not('home_team', 'is', null)
+    .not('away_team', 'is', null)
+    .gt('match_date', now)
+
+  const validIds = (validMatches ?? []).map((m: any) => m.id)
+  if (validIds.length === 0) return { error: 'Nenhum jogo válido selecionado (apenas jogos futuros com times definidos).' }
+
+  // Merge com os ids existentes
+  const existing: string[] = pool.match_ids ?? []
+  const merged = Array.from(new Set([...existing, ...validIds]))
+
+  const { error } = await supabaseAdmin.from('pools').update({ match_ids: merged }).eq('id', poolId)
+  if (error) return { error: 'Erro ao atualizar o bolão.' }
+
+  revalidatePath(`/dashboard/groups/${pool.group_id}/pools/${poolId}`)
+  return { success: true, added: validIds.length }
+}
+
 export async function deleteGroup(groupId: string) {
   const supabase = await createServerSupabaseClient()
   const supabaseAdmin = createAdminClient()

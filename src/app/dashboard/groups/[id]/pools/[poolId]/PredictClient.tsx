@@ -23,8 +23,10 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import PeopleIcon from '@mui/icons-material/People'
 import FilterListIcon from '@mui/icons-material/FilterList'
 import LeaderboardIcon from '@mui/icons-material/Leaderboard'
+import AddIcon from '@mui/icons-material/Add'
+import CloseIcon from '@mui/icons-material/Close'
 import Link from 'next/link'
-import { savePredictions, saveSpecialPredictions } from '../../actions'
+import { savePredictions, saveSpecialPredictions, addMatchesToPool } from '../../actions'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import PredictionsModal from './PredictionsModal'
@@ -36,8 +38,8 @@ import { PLAYERS } from '@/lib/players'
 
 interface Match {
   id: string
-  home_team: string
-  away_team: string
+  home_team: string | null
+  away_team: string | null
   match_date: string
   round: string
   group_name: string
@@ -68,6 +70,8 @@ interface PredictClientProps {
   allTeams: string[]
   initialTab?: 'pending' | 'finished'
   scrollToMatchId?: string
+  isOwner?: boolean
+  availableMatchesToAdd?: Match[]
 }
 
 const SPECIAL_BET_LABELS: Record<string, string> = {
@@ -89,7 +93,7 @@ const glowPulse = keyframes`
   100% { box-shadow: 0 0 12px rgba(99,202,132,0.2); border-color: rgba(99,202,132,0.3); }
 `
 
-export default function PredictClient({ groupId, poolId, poolName, poolType, poolStatus, specialBets, matches, initialPredictions, initialSpecialPredictions, allTeams, initialTab, scrollToMatchId }: PredictClientProps) {
+export default function PredictClient({ groupId, poolId, poolName, poolType, poolStatus, specialBets, matches, initialPredictions, initialSpecialPredictions, allTeams, initialTab, scrollToMatchId, isOwner, availableMatchesToAdd }: PredictClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -98,9 +102,53 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
   const [showGroupPredictions, setShowGroupPredictions] = useState(false)
   const [showStandings, setShowStandings] = useState(false)
   const [localMatches, setLocalMatches] = useState<Match[]>(matches)
+  const [localAvailableMatches, setLocalAvailableMatches] = useState<Match[]>(availableMatchesToAdd ?? [])
   const [filterGroup, setFilterGroup] = useState<string | null>(null)
   const [filterDate, setFilterDate] = useState<string | null>(null)
   const [filterOpen, setFilterOpen] = useState(false)
+
+  // Admin: adicionar jogos ao bolão
+  const [addMatchesOpen, setAddMatchesOpen] = useState(false)
+  const [addMatchesSelected, setAddMatchesSelected] = useState<string[]>([])
+  const [addMatchesLoading, setAddMatchesLoading] = useState(false)
+  const [addMatchesResult, setAddMatchesResult] = useState<{ ok: boolean; msg: string } | null>(null)
+
+  const handleAddMatches = async () => {
+    if (addMatchesSelected.length === 0) return
+    setAddMatchesLoading(true)
+    setAddMatchesResult(null)
+    try {
+      const res = await addMatchesToPool(poolId, addMatchesSelected)
+      if ('error' in res) {
+        setAddMatchesResult({ ok: false, msg: res.error! })
+      } else {
+        // Jogos recém adicionados
+        const newMatches = localAvailableMatches.filter(m => addMatchesSelected.includes(m.id))
+
+        // Atualiza lista de jogos do bolão imediatamente
+        setLocalMatches(prev => [...prev, ...newMatches].sort(
+          (a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime()
+        ))
+
+        // Remove os jogos adicionados da lista de disponíveis
+        setLocalAvailableMatches(prev => prev.filter(m => !addMatchesSelected.includes(m.id)))
+
+        // Adiciona entradas de palpite vazias para os novos jogos
+        setPredictions(prev => [
+          ...prev,
+          ...newMatches.map(m => ({ matchId: m.id, prediction: null }))
+        ])
+
+        setAddMatchesResult({ ok: true, msg: `${res.added} jogo(s) adicionado(s) com sucesso!` })
+        setAddMatchesSelected([])
+        setTimeout(() => { setAddMatchesOpen(false); setAddMatchesResult(null) }, 1500)
+      }
+    } catch (e: any) {
+      setAddMatchesResult({ ok: false, msg: e.message })
+    } finally {
+      setAddMatchesLoading(false)
+    }
+  }
 
   const alreadySavedSpecial = initialSpecialPredictions.length > 0
   const [specialValues, setSpecialValues] = useState<Record<string, string>>(() => {
@@ -302,7 +350,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
           </IconButton>
         </Link>
 
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mt: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mt: 2 }}>
           <Box sx={{ minWidth: 0 }}>
             <Typography sx={{
               color: '#fff',
@@ -318,51 +366,76 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
             </Typography>
           </Box>
 
-          <IconButton
-            onClick={() => setShowStandings(true)}
-            sx={{
-              color: '#C9940A',
-              bgcolor: 'rgba(255,255,255,0.92)',
-              borderRadius: '8px',
-              flexShrink: 0,
-              gap: 0.5,
-              px: { xs: 1, md: 2 },
-              border: '1px solid rgba(201,148,10,0.4)',
-              '&:hover': { bgcolor: '#fff', boxShadow: '0 0 12px rgba(201,148,10,0.25)' }
-            }}
-          >
-            <LeaderboardIcon sx={{ fontSize: 18, color: '#C9940A' }} />
-            <Typography sx={{
-              display: { xs: 'none', md: 'block' },
-              color: '#C9940A',
-              fontSize: 12,
-              fontWeight: 800,
-            }}>
-              Classificação
-            </Typography>
-          </IconButton>
-          <IconButton
-            onClick={() => setShowGroupPredictions(true)}
-            sx={{
-              color: '#C9940A',
-              bgcolor: 'rgba(201,148,10,0.05)',
-              borderRadius: '8px',
-              flexShrink: 0,
-              gap: 0.5,
-              px: { xs: 1, md: 2 },
-              '&:hover': { bgcolor: 'rgba(201,148,10,0.1)' }
-            }}
-          >
-            <PeopleIcon sx={{ fontSize: 18 }} />
-            <Typography sx={{
-              display: { xs: 'none', md: 'block' },
-              color: '#C9940A',
-              fontSize: 12,
-              fontWeight: 700,
-            }}>
-              Palpites do Grupo
-            </Typography>
-          </IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+            <IconButton
+              onClick={() => setShowStandings(true)}
+              sx={{
+                color: '#C9940A',
+                bgcolor: 'rgba(255,255,255,0.92)',
+                borderRadius: '8px',
+                gap: 0.5,
+                px: { xs: 1, md: 2 },
+                border: '1px solid rgba(201,148,10,0.4)',
+                '&:hover': { bgcolor: '#fff', boxShadow: '0 0 12px rgba(201,148,10,0.25)' }
+              }}
+            >
+              <LeaderboardIcon sx={{ fontSize: 18, color: '#C9940A' }} />
+              <Typography sx={{
+                display: { xs: 'none', md: 'block' },
+                color: '#C9940A',
+                fontSize: 12,
+                fontWeight: 800,
+              }}>
+                Classificação
+              </Typography>
+            </IconButton>
+
+            <IconButton
+              onClick={() => setShowGroupPredictions(true)}
+              sx={{
+                color: '#C9940A',
+                bgcolor: 'rgba(201,148,10,0.05)',
+                borderRadius: '8px',
+                gap: 0.5,
+                px: { xs: 1, md: 2 },
+                '&:hover': { bgcolor: 'rgba(201,148,10,0.1)' }
+              }}
+            >
+              <PeopleIcon sx={{ fontSize: 18 }} />
+              <Typography sx={{
+                display: { xs: 'none', md: 'block' },
+                color: '#C9940A',
+                fontSize: 12,
+                fontWeight: 700,
+              }}>
+                Palpites do Grupo
+              </Typography>
+            </IconButton>
+
+            {isOwner && localAvailableMatches.length > 0 && (
+              <IconButton
+                onClick={() => { setAddMatchesOpen(true); setAddMatchesResult(null) }}
+                sx={{
+                  color: '#4caf50',
+                  bgcolor: 'rgba(76,175,80,0.06)',
+                  borderRadius: '8px',
+                  gap: 0.5,
+                  px: { xs: 1, md: 2 },
+                  '&:hover': { bgcolor: 'rgba(76,175,80,0.12)' }
+                }}
+              >
+                <AddIcon sx={{ fontSize: 18 }} />
+                <Typography sx={{
+                  display: { xs: 'none', md: 'block' },
+                  color: '#4caf50',
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}>
+                  Adicionar Jogos
+                </Typography>
+              </IconButton>
+            )}
+          </Box>
         </Box>
       </Box>
 
@@ -678,13 +751,13 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                       {/* Home Team */}
                       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
                         <Avatar
-                          src={getFlagUrl(match.home_team, 80)}
+                          src={match.home_team ? getFlagUrl(match.home_team, 80) : undefined}
                           sx={{ width: 48, height: 48, mb: 1, border: '1px solid rgba(255,255,255,0.1)' }}
                         >
-                          {match.home_team.charAt(0)}
+                          {match.home_team?.charAt(0) ?? '?'}
                         </Avatar>
                         <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14, mb: 2, textAlign: 'center' }}>
-                          {translateTeam(match.home_team)}
+                          {match.home_team ? translateTeam(match.home_team) : 'A definir'}
                         </Typography>
                         <input
                           type="text"
@@ -712,13 +785,13 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                       {/* Away Team */}
                       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
                         <Avatar
-                          src={getFlagUrl(match.away_team, 80)}
+                          src={match.away_team ? getFlagUrl(match.away_team, 80) : undefined}
                           sx={{ width: 48, height: 48, mb: 1, border: '1px solid rgba(255,255,255,0.1)' }}
                         >
-                          {match.away_team.charAt(0)}
+                          {match.away_team?.charAt(0) ?? '?'}
                         </Avatar>
                         <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14, mb: 2, textAlign: 'center' }}>
-                          {translateTeam(match.away_team)}
+                          {match.away_team ? translateTeam(match.away_team) : 'A definir'}
                         </Typography>
                         <input
                           type="text"
@@ -762,13 +835,13 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                           <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: selectedGold }} />
                         )}
                         <Avatar
-                          src={getFlagUrl(match.home_team, 80)}
+                          src={match.home_team ? getFlagUrl(match.home_team, 80) : undefined}
                           sx={{ width: 40, height: 40, mx: 'auto', mb: 1.5, border: currentChoice === 'Time A' ? `2px solid ${selectedGold}` : '1px solid rgba(255,255,255,0.1)' }}
                         >
-                          {match.home_team.charAt(0)}
+                          {match.home_team?.charAt(0) ?? '?'}
                         </Avatar>
                         <Typography sx={{ color: currentChoice === 'Time A' ? selectedGold : '#fff', fontWeight: 700, fontSize: 13 }}>
-                          {translateTeam(match.home_team)}
+                          {match.home_team ? translateTeam(match.home_team) : 'A definir'}
                         </Typography>
                         <Typography sx={{ color: isDisabled && currentChoice !== 'Time A' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
                           {currentChoice === 'Time A' ? 'ESCOLHIDO' : 'VENCE'}
@@ -833,13 +906,13 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                           <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', bgcolor: selectedGold }} />
                         )}
                         <Avatar
-                          src={getFlagUrl(match.away_team, 80)}
+                          src={match.away_team ? getFlagUrl(match.away_team, 80) : undefined}
                           sx={{ width: 40, height: 40, mx: 'auto', mb: 1.5, border: currentChoice === 'Time B' ? `2px solid ${selectedGold}` : '1px solid rgba(255,255,255,0.1)' }}
                         >
-                          {match.away_team.charAt(0)}
+                          {match.away_team?.charAt(0) ?? '?'}
                         </Avatar>
                         <Typography sx={{ color: currentChoice === 'Time B' ? selectedGold : '#fff', fontWeight: 700, fontSize: 13 }}>
-                          {translateTeam(match.away_team)}
+                          {match.away_team ? translateTeam(match.away_team) : 'A definir'}
                         </Typography>
                         <Typography sx={{ color: isDisabled && currentChoice !== 'Time B' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
                           {currentChoice === 'Time B' ? 'ESCOLHIDO' : 'VENCE'}
@@ -1177,6 +1250,92 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
               {specialLoading ? <CircularProgress size={20} color="inherit" /> : 'Salvar Apostas Especiais'}
             </Button>
           )}
+        </Box>
+      )}
+
+      {/* Modal: Admin adicionar jogos */}
+      {isOwner && addMatchesOpen && (
+        <Box sx={{
+          position: 'fixed', inset: 0, zIndex: 1300,
+          bgcolor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          p: { xs: 0, md: 2 },
+        }} onClick={() => setAddMatchesOpen(false)}>
+          <Box onClick={e => e.stopPropagation()} sx={{
+            width: '100%', maxWidth: 560,
+            bgcolor: '#111', border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: { xs: '20px 20px 0 0', md: '20px' },
+            p: 3, maxHeight: '80vh', overflowY: 'auto',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
+              <Typography sx={{ color: '#fff', fontWeight: 800, fontSize: 16 }}>Adicionar Jogos ao Bolão</Typography>
+              <IconButton size="small" onClick={() => setAddMatchesOpen(false)} sx={{ color: 'rgba(255,255,255,0.4)' }}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Box>
+
+            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, mb: 2 }}>
+              Apenas jogos futuros com times definidos. Membros poderão palpitar nos novos jogos.
+            </Typography>
+
+            <Stack spacing={1} sx={{ mb: 2.5 }}>
+              {localAvailableMatches.map(match => {
+                const selected = addMatchesSelected.includes(match.id)
+                const date = new Date(match.match_date)
+                return (
+                  <Box
+                    key={match.id}
+                    onClick={() => setAddMatchesSelected(prev =>
+                      selected ? prev.filter(id => id !== match.id) : [...prev, match.id]
+                    )}
+                    sx={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      px: 2, py: 1.25, borderRadius: '12px', cursor: 'pointer', border: '1px solid',
+                      borderColor: selected ? 'rgba(76,175,80,0.5)' : 'rgba(255,255,255,0.07)',
+                      bgcolor: selected ? 'rgba(76,175,80,0.07)' : 'rgba(255,255,255,0.02)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <TeamFlag teamName={match.home_team!} size={20} />
+                      <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
+                        {translateTeam(match.home_team!)} vs {translateTeam(match.away_team!)}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>
+                        {date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })} {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}h
+                      </Typography>
+                      {selected && <CheckIcon sx={{ fontSize: 16, color: '#4caf50' }} />}
+                    </Box>
+                  </Box>
+                )
+              })}
+            </Stack>
+
+            {addMatchesResult && (
+              <Typography sx={{ fontSize: 12, mb: 2, color: addMatchesResult.ok ? '#4caf50' : '#ff6b6b' }}>
+                {addMatchesResult.ok ? '✓' : '✗'} {addMatchesResult.msg}
+              </Typography>
+            )}
+
+            <Button
+              fullWidth
+              variant="contained"
+              disabled={addMatchesSelected.length === 0 || addMatchesLoading}
+              onClick={handleAddMatches}
+              sx={{
+                bgcolor: '#4caf50', color: '#000', fontWeight: 800, fontSize: 14,
+                py: 1.5, borderRadius: '12px', textTransform: 'none',
+                '&:hover': { bgcolor: '#43a047' },
+                '&.Mui-disabled': { bgcolor: 'rgba(76,175,80,0.3)' },
+              }}
+            >
+              {addMatchesLoading
+                ? <CircularProgress size={18} color="inherit" />
+                : `Adicionar ${addMatchesSelected.length > 0 ? `(${addMatchesSelected.length})` : ''} Jogo(s)`}
+            </Button>
+          </Box>
         </Box>
       )}
 

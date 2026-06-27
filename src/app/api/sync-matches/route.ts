@@ -43,6 +43,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const secretParam = searchParams.get('secret')
   const authHeader = request.headers.get('authorization')
+  const forceSync = searchParams.get('force') === 'true'
 
   const isVercelCron = authHeader === `Bearer ${process.env.CRON_SECRET}`
   const isManualSecret = secretParam === SYNC_SECRET || authHeader === `Bearer ${SYNC_SECRET}`
@@ -54,48 +55,53 @@ export async function GET(request: Request) {
   try {
     const supabaseAdmin = createAdminClient()
 
-    // Verifica se sync está pausado
-    const { data: syncConfig } = await supabaseAdmin
-      .from('app_config')
-      .select('value')
-      .eq('key', 'sync_paused')
-      .single()
+    // Verifica se sync está pausado (ignorado no force)
+    if (!forceSync) {
+      const { data: syncConfig } = await supabaseAdmin
+        .from('app_config')
+        .select('value')
+        .eq('key', 'sync_paused')
+        .single()
 
-    if (syncConfig?.value === 'true') {
-      return NextResponse.json({ skipped: true, reason: 'Sync pausado manualmente pelo admin.' })
+      if (syncConfig?.value === 'true') {
+        return NextResponse.json({ skipped: true, reason: 'Sync pausado manualmente pelo admin.' })
+      }
     }
 
-    const windowMinutes = Number(process.env.MATCH_WINDOW_MINUTES ?? 120)
     const now = new Date()
-    const windowMs = windowMinutes * 60 * 1000
 
-    const { data: allDbMatches } = await supabaseAdmin
-      .from('matches')
-      .select('id, match_date, status')
+    if (!forceSync) {
+      const windowMinutes = Number(process.env.MATCH_WINDOW_MINUTES ?? 120)
+      const windowMs = windowMinutes * 60 * 1000
 
-    // Só roda se houver jogos na janela ativa ou ao vivo
-    const matchesInWindow = (allDbMatches ?? []).filter((m: any) => {
-      const start = new Date(m.match_date).getTime()
-      const end = start + windowMs
-      const nowMs = now.getTime()
-      return (nowMs >= start && nowMs <= end) || LIVE_STATUSES.includes(m.status)
-    })
+      const { data: allDbMatches } = await supabaseAdmin
+        .from('matches')
+        .select('id, match_date, status')
 
-    if (matchesInWindow.length === 0) {
-      return NextResponse.json({
-        skipped: true,
-        reason: 'Nenhum jogo ativo no momento.',
-        checkedAt: now.toISOString(),
+      // Só roda se houver jogos na janela ativa ou ao vivo
+      const matchesInWindow = (allDbMatches ?? []).filter((m: any) => {
+        const start = new Date(m.match_date).getTime()
+        const end = start + windowMs
+        const nowMs = now.getTime()
+        return (nowMs >= start && nowMs <= end) || LIVE_STATUSES.includes(m.status)
       })
-    }
 
-    const allPaused = matchesInWindow.every((m: any) => PAUSE_STATUSES.includes(m.status))
-    if (allPaused) {
-      return NextResponse.json({
-        skipped: true,
-        reason: `Todos os jogos pausados (${matchesInWindow.map((m: any) => m.status).join(', ')}).`,
-        checkedAt: now.toISOString(),
-      })
+      if (matchesInWindow.length === 0) {
+        return NextResponse.json({
+          skipped: true,
+          reason: 'Nenhum jogo ativo no momento.',
+          checkedAt: now.toISOString(),
+        })
+      }
+
+      const allPaused = matchesInWindow.every((m: any) => PAUSE_STATUSES.includes(m.status))
+      if (allPaused) {
+        return NextResponse.json({
+          skipped: true,
+          reason: `Todos os jogos pausados (${matchesInWindow.map((m: any) => m.status).join(', ')}).`,
+          checkedAt: now.toISOString(),
+        })
+      }
     }
 
     // Busca jogos da API e faz upsert
@@ -106,7 +112,8 @@ export async function GET(request: Request) {
     const allGroupCompleted = groupApiMatches.every((m) => m.status === 'completed')
 
     let knockoutCount = 0
-    if (allGroupCompleted) {
+    // No force: sempre busca knockout. No cron: só busca se fase de grupos finalizada.
+    if (forceSync || allGroupCompleted) {
       await checkAndReserveApiCalls(6)
       const knockoutApiMatches = await getKnockoutMatchesAPI()
       knockoutCount = await upsertMatches(supabaseAdmin, knockoutApiMatches)

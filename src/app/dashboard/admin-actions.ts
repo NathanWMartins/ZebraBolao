@@ -482,7 +482,7 @@ export async function runSync(): Promise<Record<string, unknown>> {
   if (!secret) throw new Error('SYNC_SECRET não configurado')
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
-  const res = await fetch(`${baseUrl}/api/sync-matches`, {
+  const res = await fetch(`${baseUrl}/api/sync-matches?force=true`, {
     headers: { Authorization: `Bearer ${secret}` },
     cache: 'no-store',
   })

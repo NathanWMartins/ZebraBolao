@@ -15,6 +15,7 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import LeaderboardIcon from '@mui/icons-material/Leaderboard'
 import TeamFlag from '../components/TeamFlag'
 import { translateTeam } from '@/lib/teamTranslations'
+import KnockoutBanner from './KnockoutBanner'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
@@ -112,10 +113,13 @@ export default async function DashboardPage() {
         </Box>
       </Box>
 
+      {/* Banner Mata-Mata */}
+      <KnockoutBanner />
+
       {/* Cards grid */}
       <Box sx={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+        gridTemplateColumns: { xs: '1fr', md: 'repeat(5, 1fr)' },
         gap: 2,
         mb: 4,
       }}>

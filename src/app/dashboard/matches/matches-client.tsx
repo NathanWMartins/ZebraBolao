@@ -24,8 +24,8 @@ import { translateTeam } from '@/lib/teamTranslations'
 interface Match {
   id: string
   external_id: string
-  home_team: string
-  away_team: string
+  home_team: string | null
+  away_team: string | null
   match_date: string
   status: string
   phase?: string | null
@@ -94,12 +94,12 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
   // Filtragem dos jogos com base nos filtros e na pesquisa
   const filteredMatches = useMemo(() => {
     return matches.filter(match => {
-      const homeTranslated = translateTeam(match.home_team).toLowerCase()
-      const awayTranslated = translateTeam(match.away_team).toLowerCase()
+      const homeTranslated = (match.home_team ? translateTeam(match.home_team) : '').toLowerCase()
+      const awayTranslated = (match.away_team ? translateTeam(match.away_team) : '').toLowerCase()
       // 1. Filtro de pesquisa (nome das seleções)
       const matchesSearch =
-        match.home_team.toLowerCase().includes(search.toLowerCase()) ||
-        match.away_team.toLowerCase().includes(search.toLowerCase()) ||
+        (match.home_team?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
+        (match.away_team?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
         homeTranslated.includes(search.toLowerCase()) ||
         awayTranslated.includes(search.toLowerCase()) ||
         (match.stadium && match.stadium.toLowerCase().includes(search.toLowerCase())) ||
@@ -209,9 +209,9 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
 
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <TeamFlag teamName={match.home_team} size={20} />
+                {match.home_team && <TeamFlag teamName={match.home_team} size={20} />}
                 <Typography sx={{ fontSize: { xs: 15, md: 17 }, fontWeight: 600, color: '#fff' }}>
-                  {translateTeam(match.home_team)}
+                  {match.home_team ? translateTeam(match.home_team) : 'A definir'}
                 </Typography>
               </Box>
 
@@ -243,9 +243,9 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
               )}
 
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <TeamFlag teamName={match.away_team} size={20} />
+                {match.away_team && <TeamFlag teamName={match.away_team} size={20} />}
                 <Typography sx={{ fontSize: { xs: 15, md: 17 }, fontWeight: 600, color: '#fff' }}>
-                  {translateTeam(match.away_team)}
+                  {match.away_team ? translateTeam(match.away_team) : 'A definir'}
                 </Typography>
               </Box>
             </Box>
@@ -255,7 +255,7 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1.5 }}>
                 {/* Casa */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{translateTeam(match.home_team)}</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{match.home_team ? translateTeam(match.home_team) : 'A definir'}</Typography>
                   {(match.home_yellows ?? 0) > 0 && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
                       <Box sx={{ width: 8, height: 11, bgcolor: '#f5c518', borderRadius: '1px' }} />
@@ -272,7 +272,7 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
                 <Typography sx={{ color: 'rgba(255,255,255,0.15)', fontSize: 11 }}>•</Typography>
                 {/* Fora */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{translateTeam(match.away_team)}</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{match.away_team ? translateTeam(match.away_team) : 'A definir'}</Typography>
                   {(match.away_yellows ?? 0) > 0 && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
                       <Box sx={{ width: 8, height: 11, bgcolor: '#f5c518', borderRadius: '1px' }} />

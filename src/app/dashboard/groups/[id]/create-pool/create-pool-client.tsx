@@ -24,6 +24,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
+import WhatshotIcon from '@mui/icons-material/Whatshot'
 import Link from 'next/link'
 import { createPool } from './actions'
 import { useRouter } from 'next/navigation'
@@ -62,8 +63,11 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
 
   // Estados do bolão por jogos
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [currentDate, setCurrentDate] = useState<string>('2026-06-11')
-  const [poolType, setPoolType] = useState<'winner' | 'score'>('score')
+  const firstAvailableDate = initialMatches.length > 0
+    ? new Date(initialMatches[0].match_date).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+    : new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+  const [currentDate, setCurrentDate] = useState<string>(firstAvailableDate)
+  const [poolType, setPoolType] = useState<'winner' | 'score'>('winner')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [groupAnchor, setGroupAnchor] = useState<null | HTMLElement>(null)
 
@@ -391,6 +395,10 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
           {availableDates.map(date => {
             const dateObj = new Date(`${date}T12:00:00`)
             const active = currentDate === date
+            const hasKnockout = initialMatches.some(m => {
+              const d = new Date(m.match_date).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+              return d === date && m.round !== 'group'
+            })
             return (
               <Button key={date} onClick={() => setCurrentDate(date)} sx={{
                 minWidth: { xs: 54, sm: 80 }, flexShrink: 0,
@@ -407,6 +415,14 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
                 <Typography sx={{ fontSize: { xs: 15, sm: 20 }, fontWeight: 700 }}>
                   {dateObj.getDate()}
                 </Typography>
+                {hasKnockout && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, mt: 0.25 }}>
+                    <WhatshotIcon sx={{ fontSize: 9, color: '#C9940A' }} />
+                    <Typography sx={{ fontSize: 7, fontWeight: 800, textTransform: 'uppercase', color: '#C9940A', letterSpacing: '0.03em', lineHeight: 1 }}>
+                      mata-mata
+                    </Typography>
+                  </Box>
+                )}
               </Button>
             )
           })}

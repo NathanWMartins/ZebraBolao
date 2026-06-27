@@ -1,12 +1,13 @@
 import { getFlagUrl } from '@/lib/teamFlags'
 
 interface TeamFlagProps {
-    teamName: string
+    teamName: string | null | undefined
     size?: 20 | 40 | 80 | 160
     style?: React.CSSProperties
 }
 
 export default function TeamFlag({ teamName, size = 20, style }: TeamFlagProps) {
+    if (!teamName) return null
     const fetchSize = size <= 40 ? 80 : 160;
 
     return (

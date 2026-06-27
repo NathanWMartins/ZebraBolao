@@ -77,8 +77,31 @@ export default async function PoolPredictPage(props: { params: Promise<{ id: str
     .select('home_team, away_team')
 
   const allTeams = Array.from(new Set(
-    (allMatches || []).flatMap((m: any) => [m.home_team, m.away_team])
+    (allMatches || []).flatMap((m: any) => [m.home_team, m.away_team]).filter(Boolean)
   )).sort()
+
+  // Se for owner, buscar jogos futuros com times definidos que não estão no bolão
+  let availableMatchesToAdd: any[] = []
+  if (isOwner && pool.match_ids?.length > 0) {
+    const { data: futureMatches } = await supabase
+      .from('matches')
+      .select('id, home_team, away_team, match_date, round, group_name, status')
+      .eq('status', 'scheduled')
+      .not('home_team', 'is', null)
+      .not('away_team', 'is', null)
+      .not('id', 'in', `(${pool.match_ids.join(',')})`)
+      .order('match_date', { ascending: true })
+    availableMatchesToAdd = futureMatches || []
+  } else if (isOwner) {
+    const { data: futureMatches } = await supabase
+      .from('matches')
+      .select('id, home_team, away_team, match_date, round, group_name, status')
+      .eq('status', 'scheduled')
+      .not('home_team', 'is', null)
+      .not('away_team', 'is', null)
+      .order('match_date', { ascending: true })
+    availableMatchesToAdd = futureMatches || []
+  }
 
   return (
     <PredictClient
@@ -94,6 +117,8 @@ export default async function PoolPredictPage(props: { params: Promise<{ id: str
       allTeams={allTeams}
       initialTab={tab === 'finished' ? 'finished' : 'pending'}
       scrollToMatchId={scrollToMatch}
+      isOwner={isOwner}
+      availableMatchesToAdd={availableMatchesToAdd}
     />
   )
 }
