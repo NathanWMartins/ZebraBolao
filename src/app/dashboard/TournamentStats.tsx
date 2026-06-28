@@ -8,6 +8,7 @@ import AddIcon from '@mui/icons-material/Add'
 import RemoveIcon from '@mui/icons-material/Remove'
 import TeamFlag from '../components/TeamFlag'
 import { translateTeam } from '@/lib/teamTranslations'
+import { getFlagUrl } from '@/lib/teamFlags'
 import { PLAYERS } from '@/lib/players'
 import { incrementStat, decrementStat, addPlayerStat } from './admin-actions'
 
@@ -32,15 +33,13 @@ function PlayerStatCard({ player, stat, statLabel, rank, isAdmin, statField }: {
         <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 14, fontWeight: 700, width: 14 }}>
           {rank}
         </Typography>
-        <Avatar sx={{ width: 32, height: 32, bgcolor: 'rgba(255,255,255,0.1)', fontSize: 14 }}>
-          {player.player_name.charAt(0)}
-        </Avatar>
+        <Avatar
+          src={player.team ? getFlagUrl(player.team, 80) : undefined}
+          sx={{ width: 32, height: 32, bgcolor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
+        />
         <Box>
           <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>{player.player_name}</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <TeamFlag teamName={player.team} size={20} />
-            <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>{translateTeam(player.team)}</Typography>
-          </Box>
+          <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{translateTeam(player.team)}</Typography>
         </Box>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

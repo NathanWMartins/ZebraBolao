@@ -8,6 +8,7 @@ import Button from '@mui/material/Button'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CircularProgress from '@mui/material/CircularProgress'
 import Link from 'next/link'
+import BackButton from '@/app/components/BackButton'
 import { useSearchParams } from 'next/navigation'
 import { joinGroup } from './actions'
 
@@ -33,10 +34,7 @@ function JoinGroupForm() {
     <Box sx={{ minHeight: '100vh', bgcolor: '#111110', p: { xs: 2, md: 4 } }}>
       <Box sx={{ maxWidth: 600, mx: 'auto', mt: { xs: 2, md: 8 } }}>
         <Box sx={{ mb: 4 }}>
-          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.6)' }}>
-            <ArrowBackIcon sx={{ fontSize: 18 }} />
-            <Typography sx={{ fontSize: 14, '&:hover': { color: '#fff' } }}>Voltar para Home</Typography>
-          </Link>
+          <BackButton />
         </Box>
 
         <Box sx={{

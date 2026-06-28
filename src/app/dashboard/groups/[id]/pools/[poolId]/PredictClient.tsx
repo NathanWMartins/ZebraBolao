@@ -35,6 +35,7 @@ import { getFlagUrl } from '@/lib/teamFlags'
 import { translateTeam } from '@/lib/teamTranslations'
 import TeamFlag from '@/app/components/TeamFlag'
 import { PLAYERS } from '@/lib/players'
+import BackButton from '@/app/components/BackButton'
 
 interface Match {
   id: string
@@ -344,11 +345,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
     <Box sx={{ pb: 10, px: { xs: 2, md: 0 }, maxWidth: 800, mx: 'auto' }}>
       {/* Header */}
       <Box sx={{ pt: 2, pb: 1.5 }}>
-        <Link href={`/dashboard/groups/${groupId}`} passHref>
-          <IconButton sx={{ color: 'rgba(255,255,255,0.7)', bgcolor: 'rgba(255,255,255,0.05)', mb: 1.5 }}>
-            <ArrowBackIcon />
-          </IconButton>
-        </Link>
+        <BackButton />
 
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mt: 2 }}>
           <Box sx={{ minWidth: 0 }}>
@@ -679,35 +676,45 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
               const isGlowing = glowMatchId === match.id
               return (
                 <Card key={match.id} id={`match-${match.id}`} sx={{
-                  bgcolor: isGlowing
-                    ? 'rgba(99,202,132,0.10)'
-                    : isHit
-                      ? 'rgba(99,202,132,0.04)'
-                      : isMiss ? 'rgba(255,80,80,0.03)' : 'rgba(12,12,12)',
+                  position: 'relative',
+                  bgcolor: '#0f0f0e',
                   border: isGlowing
                     ? '1px solid rgba(99,202,132,0.8)'
                     : isHit
                       ? '1px solid rgba(99,202,132,0.45)'
                       : isMiss
-                        ? '1px solid rgba(255,80,80,0.2)'
-                        : '1px solid rgba(255,255,255,0.05)',
+                        ? '1px solid rgba(255,80,80,0.3)'
+                        : '1px solid rgba(255,255,255,0.1)',
                   borderRadius: '16px',
                   overflow: 'hidden',
                   animation: isGlowing ? `${glowPulse} 0.8s ease-in-out infinite` : 'none',
-                  boxShadow: isGlowing
-                    ? undefined
-                    : isHit
-                      ? '0 4px 20px rgba(99,202,132,0.08)'
-                      : '0 4px 20px rgba(0,0,0,0.3)',
                   transition: 'all 0.3s ease',
                   maxWidth: 600,
                   mx: 'auto',
                   width: '100%',
                   opacity: isDisabled && !currentChoice ? 0.6 : 1,
-                  '&:hover': { borderColor: isHit ? 'rgba(99,202,132,0.5)' : isDisabled ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)' }
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    inset: 0,
+                    background: isGlowing
+                      ? 'linear-gradient(135deg, rgba(99,202,132,0.15) 0%, transparent 60%)'
+                      : isHit
+                        ? 'linear-gradient(135deg, rgba(99,202,132,0.08) 0%, transparent 60%)'
+                        : isMiss
+                          ? 'linear-gradient(135deg, rgba(255,80,80,0.08) 0%, transparent 60%)'
+                          : isLive
+                            ? 'linear-gradient(135deg, rgba(253,64,64,0.1) 0%, transparent 50%)'
+                            : 'linear-gradient(135deg, rgba(60,59,110,0.25) 0%, transparent 35%, rgba(0,104,71,0.15) 60%, transparent 75%, rgba(178,34,52,0.2) 100%)',
+                    pointerEvents: 'none',
+                    zIndex: 0,
+                  },
+                  '&:hover': { borderColor: isHit ? 'rgba(99,202,132,0.6)' : isMiss ? 'rgba(255,80,80,0.4)' : isDisabled ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.18)' }
                 }}>
                   {/* Top Banner with Match Info */}
                   <Box sx={{
+                    position: 'relative',
+                    zIndex: 1,
                     bgcolor: 'rgba(255,255,255,0.02)',
                     px: 2,
                     py: 1,
@@ -747,7 +754,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
 
                   {/* Main Selection Area */}
                   {poolType === 'score' ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 3 }}>
+                    <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 3 }}>
                       {/* Home Team */}
                       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
                         <Avatar
@@ -815,7 +822,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                       </Box>
                     </Box>
                   ) : (
-                    <Box sx={{ display: 'flex', alignItems: 'stretch' }}>
+                    <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'stretch' }}>
                       {/* Team A Selection */}
                       <Box
                         onClick={() => !isDisabled && !loading && handleSelect(match.id, 'Time A')}

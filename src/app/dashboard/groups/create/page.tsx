@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { QRCodeSVG } from 'qrcode.react'
 import { createGroup } from './actions'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import BackButton from '@/app/components/BackButton'
 
 const initialState: any = {
   error: null as string | null,
@@ -119,10 +120,7 @@ export default function CreateGroupPage() {
     <Box sx={{ p: { xs: 2, md: 4 } }}>
       <Box sx={{ maxWidth: 600, mx: 'auto', mt: { xs: 2, md: 8 } }}>
         <Box sx={{ mb: 4 }}>
-          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.6)' }}>
-            <ArrowBackIcon sx={{ fontSize: 18 }} />
-            <Typography sx={{ fontSize: 14, '&:hover': { color: '#fff' } }}>Voltar para Home</Typography>
-          </Link>
+          <BackButton />
         </Box>
 
         <Box sx={{

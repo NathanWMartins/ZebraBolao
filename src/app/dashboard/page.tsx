@@ -2,7 +2,6 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import DashboardClient from './dashboard-client'
-import CountdownClient from './countdown-client'
 import TournamentStats from './TournamentStats'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -87,34 +86,22 @@ export default async function DashboardPage() {
 
   return (
     <Box component="main" sx={{ maxWidth: 1200, mx: 'auto', px: 4, py: 6 }}>
-      <Box sx={{
-        display: 'flex',
-        flexDirection: { xs: 'column', md: 'row' },
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 4,
-        mb: 5,
-      }}>
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="h1" sx={{
-            fontSize: 'clamp(28px, 4vw, 42px)',
-            fontWeight: 500,
-            color: '#fff',
-            lineHeight: 1.15,
-            letterSpacing: -1,
-          }}>
-            Pronto para acertar<br />
-            a <Box component="span" sx={{ color: '#C9940A' }}>zebra</Box> da Copa?
-          </Typography>
-        </Box>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h1" sx={{
+          fontSize: 'clamp(24px, 3.5vw, 36px)',
+          fontWeight: 500,
+          color: '#fff',
+          lineHeight: 1.15,
+          letterSpacing: -1,
+          mb: 3,
+        }}>
+          Pronto para acertar<br />
+          a <Box component="span" sx={{ color: '#C9940A' }}>zebra</Box> da Copa?
+        </Typography>
 
-        <Box sx={{ flexShrink: 0, alignSelf: { xs: 'center', md: 'center' } }}>
-          <CountdownClient />
-        </Box>
+        {/* Banner Mata-Mata com taça integrada */}
+        <KnockoutBanner />
       </Box>
-
-      {/* Banner Mata-Mata */}
-      <KnockoutBanner />
 
       {/* Cards grid */}
       <Box sx={{
@@ -341,18 +328,30 @@ function MatchCard({ match }: { match: any }) {
 
   return (
     <Box sx={{
+      position: 'relative',
+      overflow: 'hidden',
       display: 'flex',
       flexDirection: { xs: 'column', md: 'row' },
       alignItems: { xs: 'center', md: 'center' },
       justifyContent: 'space-between',
       gap: { xs: 2, md: 0 },
-      bgcolor: 'rgba(0,0,0,0.5)',
-      border: '0.5px solid rgba(255,255,255,0.08)',
-      borderRadius: '12px',
+      bgcolor: '#0f0f0e',
+      border: `1px solid ${isLive ? 'rgba(253,64,64,0.3)' : 'rgba(255,255,255,0.1)'}`,
+      borderRadius: '14px',
       px: 3,
       py: 2.5,
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        inset: 0,
+        background: isLive
+          ? 'linear-gradient(135deg, rgba(253,64,64,0.12) 0%, transparent 50%)'
+          : 'linear-gradient(135deg, rgba(60,59,110,0.3) 0%, transparent 35%, rgba(0,104,71,0.2) 60%, transparent 75%, rgba(178,34,52,0.25) 100%)',
+        pointerEvents: 'none',
+      },
     }}>
       <Box sx={{
+        position: 'relative',
         display: 'flex',
         flexDirection: 'column',
         alignItems: { xs: 'center', md: 'flex-start' }
@@ -424,13 +423,15 @@ function MatchCard({ match }: { match: any }) {
       </Box>
 
       <Box sx={{
-        bgcolor: isLive ? 'rgba(201,10,10,0.1)' : isCompleted ? 'rgba(99,202,132,0.12)' : isHalftime ? 'rgba(100,160,255,0.1)' : isDelayed ? 'rgba(255,160,50,0.1)' : 'rgba(201,148,10,0.1)',
-        color: isLive ? '#fd4040' : isCompleted ? '#63ca84' : isHalftime ? '#64a0ff' : isDelayed ? '#ffa032' : '#C9940A',
+        position: 'relative',
+        bgcolor: isLive ? 'rgba(253,64,64,0.1)' : isCompleted ? 'rgba(99,202,132,0.1)' : isHalftime ? 'rgba(100,160,255,0.1)' : isDelayed ? 'rgba(255,160,50,0.1)' : 'rgba(255,255,255,0.05)',
+        color: isLive ? '#fd4040' : isCompleted ? '#63ca84' : isHalftime ? '#64a0ff' : isDelayed ? '#ffa032' : 'rgba(255,255,255,0.5)',
         px: 2,
         py: 1,
         alignSelf: { xs: 'center', md: 'auto' },
         borderRadius: '8px',
-        border: isLive ? '0.5px solid rgba(201,10,10,0.2)' : isCompleted ? '0.5px solid rgba(99,202,132,0.3)' : isHalftime ? '0.5px solid rgba(100,160,255,0.2)' : isDelayed ? '0.5px solid rgba(255,160,50,0.2)' : '0.5px solid rgba(201,148,10,0.2)',
+        border: isLive ? '1px solid rgba(253,64,64,0.25)' : isCompleted ? '1px solid rgba(99,202,132,0.2)' : isHalftime ? '1px solid rgba(100,160,255,0.2)' : isDelayed ? '1px solid rgba(255,160,50,0.2)' : '1px solid rgba(255,255,255,0.08)',
+        flexShrink: 0,
       }}>
         <Typography sx={{ fontSize: { xs: 10, md: 13 }, fontWeight: 600 }}>{translate(match)}</Typography>
       </Box>

@@ -28,6 +28,7 @@ import WhatshotIcon from '@mui/icons-material/Whatshot'
 import Link from 'next/link'
 import { createPool } from './actions'
 import { useRouter } from 'next/navigation'
+import BackButton from '@/app/components/BackButton'
 import TeamFlag from '@/app/components/TeamFlag'
 import { translateTeam } from '@/lib/teamTranslations'
 
@@ -195,11 +196,7 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
           borderBottom: '1px solid rgba(255,255,255,0.05)'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
-            <Link href={`/dashboard/groups/${groupId}`} passHref>
-              <IconButton size="small" sx={{ color: 'rgba(255,255,255,0.7)', bgcolor: 'rgba(255,255,255,0.05)', p: { xs: 0.75, sm: 1 } }}>
-                <ArrowBackIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
-              </IconButton>
-            </Link>
+            <BackButton />
             <Box>
               <Typography sx={{ color: '#fff', fontWeight: 'bold', fontSize: { xs: 18, sm: 24 } }}>Novo Bolão</Typography>
               <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: { xs: 11, sm: 13 } }}>Grupo: {groupName}</Typography>

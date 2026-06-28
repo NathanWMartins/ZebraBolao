@@ -8,6 +8,7 @@ import AddIcon from '@mui/icons-material/Add'
 import ShareModalClient from './ShareModalClient'
 import EditGroupModal from './EditGroupModal'
 import GroupPoolsList from './GroupPoolsList'
+import BackButton from '@/app/components/BackButton'
 import MembersListClient from './MembersListClient'
 
 export default async function GroupPage(props: {
@@ -110,10 +111,7 @@ export default async function GroupPage(props: {
   return (
     <Box sx={{ maxWidth: 800, mx: 'auto', mt: { xs: 2, md: 4 }, px: { xs: 3, md: 0 }, pb: 8 }}>
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Link href="/dashboard" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.6)' }}>
-          <ArrowBackIcon sx={{ fontSize: 18 }} />
-          <Typography sx={{ fontSize: 14 }}>Voltar à Home</Typography>
-        </Link>
+        <BackButton />
 
         {isOwner && (
           <Stack direction="row" spacing={2}>

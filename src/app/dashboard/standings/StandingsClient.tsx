@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { translateTeam } from '@/lib/teamTranslations'
 import TeamFlag from '@/app/components/TeamFlag'
 import { getFlagUrl } from '@/lib/teamFlags'
+import BackButton from '@/app/components/BackButton'
 
 export type StandingEntry = {
   id: string
@@ -322,7 +323,7 @@ function Tabs({ active, onChange, compact }: { active: 'grupos' | 'matamata', on
 // ─── Export principal ─────────────────────────────────────────────────────────
 
 export default function StandingsClient({ standings, knockoutMatches = [], compact = false }: Props) {
-  const [tab, setTab] = useState<'grupos' | 'matamata'>('grupos')
+  const [tab, setTab] = useState<'grupos' | 'matamata'>('matamata')
 
   const groups: Record<string, StandingEntry[]> = {}
   for (const s of standings) {
@@ -353,17 +354,11 @@ export default function StandingsClient({ standings, knockoutMatches = [], compa
   return (
     <Box sx={{ maxWidth: 900, mx: 'auto', mt: { xs: 2, md: 4 }, px: { xs: 2, md: 0 }, pb: 10 }}>
       <Box sx={{ mb: 4 }}>
-        <Link href="/dashboard" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.6)' }}>
-          <ArrowBackIcon sx={{ fontSize: 18 }} />
-          <Typography sx={{ fontSize: 14 }}>Voltar ao Dashboard</Typography>
-        </Link>
+        <BackButton />
       </Box>
 
-      <Typography variant="h1" sx={{ color: '#fff', fontSize: 28, fontWeight: 800, mb: 1 }}>
+      <Typography variant="h1" sx={{ color: '#fff', fontSize: 28, fontWeight: 800, mb: 2 }}>
         Classificação
-      </Typography>
-      <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, mb: 3 }}>
-        Top 2 de cada grupo se classificam para o mata-mata.
       </Typography>
 
       <Tabs active={tab} onChange={setTab} compact={false} />

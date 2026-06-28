@@ -20,6 +20,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import TeamFlag from '@/app/components/TeamFlag'
 import { translateTeam } from '@/lib/teamTranslations'
+import BackButton from '@/app/components/BackButton'
 
 interface Match {
   id: string
@@ -338,10 +339,7 @@ export default function MatchesClient({ initialMatches }: MatchesClientProps) {
     <Box sx={{ maxWidth: 850, mx: 'auto', mt: { xs: 2, md: 4 }, px: { xs: 3, md: 0 }, pb: 8 }}>
       {/* Botão de Voltar */}
       <Box sx={{ mb: 4 }}>
-        <Link href="/dashboard" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.6)' }}>
-          <ArrowBackIcon sx={{ fontSize: 18 }} />
-          <Typography sx={{ fontSize: 14, '&:hover': { color: '#fff' } }}>Voltar ao Dashboard</Typography>
-        </Link>
+        <BackButton />
       </Box>
 
       {/* Título da Página */}

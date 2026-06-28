@@ -8,6 +8,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
 import AddIcon from '@mui/icons-material/Add'
 import GroupCard from './GroupCard'
+import BackButton from '@/app/components/BackButton'
 import GlobalRanking from './GlobalRanking'
 import { getGlobalRanking } from './actions'
 
@@ -46,10 +47,7 @@ export default async function MyGroupsPage() {
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto', mt: { xs: 2, md: 4 }, px: { xs: 3, md: 0 }, pb: 10 }}>
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center' }}>
-        <Link href="/dashboard" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.6)' }}>
-          <ArrowBackIcon sx={{ fontSize: 18 }} />
-          <Typography sx={{ fontSize: 14, '&:hover': { color: '#fff' } }}>Voltar ao Dashboard</Typography>
-        </Link>
+        <BackButton />
       </Box>
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 6 }}>
