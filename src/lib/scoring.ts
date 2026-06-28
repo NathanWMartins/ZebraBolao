@@ -5,6 +5,13 @@ export const ROUND_POINTS: Record<string, number> = {
   'group a': 1, 'group b': 1, 'group c': 1, 'group d': 1,
   'group e': 1, 'group f': 1, 'group g': 1, 'group h': 1,
   'group i': 1, 'group j': 1, 'group k': 1, 'group l': 1,
+  // API codes (saved directly to DB)
+  'r32': 2,
+  'r16': 3,
+  'qf': 5,
+  'sf': 8,
+  '3rd': 5,
+  // Long-form variants
   'round of 32': 2,
   'round of 16': 3,
   'quarter-finals': 5,

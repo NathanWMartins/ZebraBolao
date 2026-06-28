@@ -8,7 +8,7 @@ import {
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import Link from 'next/link'
-import { updateMatch, incrementStat, decrementStat, addPlayerStat, processMatchAndCalculate, recalculateAllScores, addTeamCard, decrementTeamCard, setSyncPaused, runSync, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry, getMatchHits, notifyMatchHits, MatchHit } from '../admin-actions'
+import { updateMatch, incrementStat, decrementStat, addPlayerStat, processMatchAndCalculate, recalculateAllScores, recalculateKnockoutScores, addTeamCard, decrementTeamCard, setSyncPaused, runSync, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry, getMatchHits, notifyMatchHits, MatchHit } from '../admin-actions'
 import { translateTeam } from '@/lib/teamTranslations'
 import { getFlagUrl } from '@/lib/teamFlags'
 import TeamFlag from '@/app/components/TeamFlag'
@@ -80,6 +80,8 @@ export default function AdminClient({
     )
     const [recalculating, setRecalculating] = useState(false)
     const [recalcResult, setRecalcResult] = useState<{ ok: boolean; msg: string } | null>(null)
+    const [recalcKnockout, setRecalcKnockout] = useState(false)
+    const [recalcKnockoutResult, setRecalcKnockoutResult] = useState<{ ok: boolean; msg: string } | null>(null)
 
     // Modal de notificações por jogo
     const [notifModalMatchId, setNotifModalMatchId] = useState<string | null>(null)
@@ -113,6 +115,19 @@ export default function AdminClient({
             setNotifyResult({ ok: false, msg: e.message })
         } finally {
             setNotifying(false)
+        }
+    }
+
+    const handleRecalculateKnockout = async () => {
+        setRecalcKnockout(true)
+        setRecalcKnockoutResult(null)
+        try {
+            const res = await recalculateKnockoutScores()
+            setRecalcKnockoutResult({ ok: true, msg: res.matchesProcessed === 0 ? 'Nenhum jogo de mata-mata finalizado' : `${res.matchesProcessed} jogo(s) recalculados` })
+        } catch (e: any) {
+            setRecalcKnockoutResult({ ok: false, msg: e.message })
+        } finally {
+            setRecalcKnockout(false)
         }
     }
 
@@ -402,7 +417,8 @@ const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => a
                 </Button>
             </Box>
 
-            {/* Recalcular todos os pontos */}
+
+            {/* Recalcular pontos mata-mata */}
             <Box sx={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 bgcolor: 'rgba(255,255,255,0.03)',
@@ -410,29 +426,29 @@ const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => a
                 borderRadius: '12px', px: 2, py: 1.5, mb: 3,
             }}>
                 <Box>
-                    <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>Recalcular todos os pontos</Typography>
-                    <Typography sx={{ color: recalcResult ? (recalcResult.ok ? '#4caf50' : '#ff6b6b') : 'rgba(255,255,255,0.4)', fontSize: 11 }}>
-                        {recalcResult ? recalcResult.msg : 'Zera e recalcula pontos de todos os jogos concluídos'}
+                    <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>Recalcular pontos Mata-Mata</Typography>
+                    <Typography sx={{ color: recalcKnockoutResult ? (recalcKnockoutResult.ok ? '#4caf50' : '#ff6b6b') : 'rgba(255,255,255,0.4)', fontSize: 11 }}>
+                        {recalcKnockoutResult ? recalcKnockoutResult.msg : 'Recalcula só os jogos finalizados do mata-mata (R32, R16, QF, SF, 3rd, Final)'}
                     </Typography>
                 </Box>
                 <Button
-                    onClick={handleRecalculateAll}
-                    disabled={recalculating}
+                    onClick={handleRecalculateKnockout}
+                    disabled={recalcKnockout}
                     size="small"
                     variant="outlined"
-                    startIcon={recalculating ? <CircularProgress size={12} color="inherit" /> : undefined}
+                    startIcon={recalcKnockout ? <CircularProgress size={12} color="inherit" /> : undefined}
                     sx={{
-                        color: '#C9940A',
-                        borderColor: 'rgba(201,148,10,0.4)',
+                        color: '#a78bfa',
+                        borderColor: 'rgba(167,139,250,0.4)',
                         fontWeight: 700,
                         fontSize: 12,
                         textTransform: 'none',
                         px: 2,
-                        '&:hover': { borderColor: '#C9940A', bgcolor: 'rgba(201,148,10,0.08)' },
-                        '&.Mui-disabled': { color: 'rgba(201,148,10,0.3)', borderColor: 'rgba(201,148,10,0.2)' },
+                        '&:hover': { borderColor: '#a78bfa', bgcolor: 'rgba(167,139,250,0.08)' },
+                        '&.Mui-disabled': { color: 'rgba(167,139,250,0.3)', borderColor: 'rgba(167,139,250,0.2)' },
                     }}
                 >
-                    {recalculating ? 'Calculando...' : '⚡ Recalcular tudo'}
+                    {recalcKnockout ? 'Calculando...' : '🏆 Recalcular Mata-Mata'}
                 </Button>
             </Box>
 

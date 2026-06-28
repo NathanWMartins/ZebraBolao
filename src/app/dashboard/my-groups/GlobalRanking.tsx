@@ -188,18 +188,29 @@ export default function GlobalRanking({
                 <Box
                   key={entry.user_id}
                   sx={{
+                    position: 'relative',
+                    overflow: 'hidden',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 2,
-                    bgcolor: isMe ? 'rgba(232,196,74,0.07)' : 'rgba(0,0,0,0.35)',
-                    border: `0.5px solid ${isMe ? 'rgba(232,196,74,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                    bgcolor: '#0f0f0e',
+                    border: `1px solid ${isMe ? 'rgba(232,196,74,0.4)' : 'rgba(255,255,255,0.1)'}`,
                     borderRadius: '12px',
                     px: 2.5,
                     py: 1.5,
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      inset: 0,
+                      background: isMe
+                        ? 'linear-gradient(135deg, rgba(232,196,74,0.15) 0%, transparent 50%)'
+                        : 'linear-gradient(135deg, rgba(60,59,110,0.3) 0%, transparent 35%, rgba(0,104,71,0.2) 60%, transparent 75%, rgba(178,34,52,0.25) 100%)',
+                      pointerEvents: 'none',
+                    },
                   }}
                 >
                   {/* Posição */}
-                  <Box sx={{ width: 28, textAlign: 'center', flexShrink: 0 }}>
+                  <Box sx={{ position: 'relative', zIndex: 1, width: 28, textAlign: 'center', flexShrink: 0 }}>
                     {medalColor ? (
                       <EmojiEventsIcon sx={{ color: medalColor, fontSize: 20 }} />
                     ) : (
@@ -212,11 +223,12 @@ export default function GlobalRanking({
                   {/* Avatar + Nome */}
                   <Avatar
                     src={entry.avatar_url ?? undefined}
-                    sx={{ width: 32, height: 32, bgcolor: 'rgba(232,196,74,0.2)', fontSize: 14 }}
+                    sx={{ position: 'relative', zIndex: 1, width: 32, height: 32, bgcolor: 'rgba(232,196,74,0.2)', fontSize: 14 }}
                   >
                     {entry.username?.[0]?.toUpperCase()}
                   </Avatar>
                   <Typography sx={{
+                    position: 'relative', zIndex: 1,
                     color: isMe ? '#E8C44A' : '#fff',
                     fontWeight: isMe ? 700 : 500,
                     fontSize: 14,
@@ -226,7 +238,7 @@ export default function GlobalRanking({
                   </Typography>
 
                   {/* Pontos */}
-                  <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                  <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'right', flexShrink: 0 }}>
                     <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>
                       {entry.total_points}
                     </Typography>

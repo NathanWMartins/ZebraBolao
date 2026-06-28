@@ -226,6 +226,32 @@ export async function processMatchAndCalculate(matchId: string): Promise<{ goals
   return { goalsUpdated, poolsUpdated, statsNote }
 }
 
+export async function recalculateKnockoutScores(): Promise<{ matchesProcessed: number; poolsUpdated: number }> {
+  const supabase = await checkAdmin()
+
+  const knockoutRounds = ['R32', 'R16', 'QF', 'SF', '3rd', 'final']
+
+  const { data: completedMatches } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('status', 'completed')
+    .in('round', knockoutRounds)
+    .not('home_score', 'is', null)
+    .not('away_score', 'is', null)
+
+  if (!completedMatches || completedMatches.length === 0) return { matchesProcessed: 0, poolsUpdated: 0 }
+
+  let totalPoolsUpdated = 0
+  for (const match of completedMatches) {
+    const res = await calculateScoresForMatch(match.id)
+    totalPoolsUpdated = Math.max(totalPoolsUpdated, res.poolsUpdated)
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/my-groups')
+  return { matchesProcessed: completedMatches.length, poolsUpdated: totalPoolsUpdated }
+}
+
 export async function recalculateAllScores(): Promise<{ matchesProcessed: number; poolsUpdated: number }> {
   const supabase = await checkAdmin()
 
