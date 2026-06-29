@@ -11,7 +11,7 @@ import type { WC2026MatchAPI } from '@/lib/wc2026'
 const SYNC_SECRET = process.env.SYNC_SECRET
 if (!SYNC_SECRET) throw new Error('SYNC_SECRET env variable is required')
 
-const LIVE_STATUSES = ['live', 'in_play', 'playing']
+const LIVE_STATUSES = ['live', 'in_play', 'playing', 'extra_time', 'penalties']
 const PAUSE_STATUSES = ['halftime', 'delayed']
 
 async function upsertMatches(supabase: ReturnType<typeof createAdminClient>, apiMatches: WC2026MatchAPI[]) {

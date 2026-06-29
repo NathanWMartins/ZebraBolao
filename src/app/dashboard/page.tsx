@@ -51,7 +51,7 @@ export default async function DashboardPage() {
   const { data: liveMatches } = await supabase
     .from('matches')
     .select('*')
-    .in('status', ['live', 'in_play', 'playing', 'halftime', 'delayed'])
+    .in('status', ['live', 'in_play', 'playing', 'halftime', 'delayed', 'extra_time', 'penalties'])
     .order('match_date', { ascending: true })
 
   // Merge: ao vivo primeiro, depois agendados (sem duplicatas)
@@ -321,9 +321,11 @@ function MatchCard({ match }: { match: any }) {
     minute: '2-digit'
   })
   const matchTimeBRT = formatter.format(new Date(match.match_date))
-  const isLive = ['live', 'in_play', 'playing'].includes(match.status)
+  const isLive = ['live', 'in_play', 'playing', 'extra_time', 'penalties'].includes(match.status)
   const isHalftime = match.status === 'halftime'
   const isDelayed = match.status === 'delayed'
+  const isExtraTime = match.status === 'extra_time'
+  const isPenalties = match.status === 'penalties'
   const isCompleted = ['completed'].includes(match.status)
 
   return (
@@ -424,13 +426,13 @@ function MatchCard({ match }: { match: any }) {
 
       <Box sx={{
         position: 'relative',
-        bgcolor: isLive ? 'rgba(253,64,64,0.1)' : isCompleted ? 'rgba(99,202,132,0.1)' : isHalftime ? 'rgba(100,160,255,0.1)' : isDelayed ? 'rgba(255,160,50,0.1)' : 'rgba(255,255,255,0.05)',
-        color: isLive ? '#fd4040' : isCompleted ? '#63ca84' : isHalftime ? '#64a0ff' : isDelayed ? '#ffa032' : 'rgba(255,255,255,0.5)',
+        bgcolor: isLive ? 'rgba(253,64,64,0.1)' : isCompleted ? 'rgba(99,202,132,0.1)' : isHalftime ? 'rgba(100,160,255,0.1)' : isExtraTime ? 'rgba(167,139,250,0.1)' : isPenalties ? 'rgba(251,146,60,0.1)' : isDelayed ? 'rgba(255,160,50,0.1)' : 'rgba(255,255,255,0.05)',
+        color: isLive ? '#fd4040' : isCompleted ? '#63ca84' : isHalftime ? '#64a0ff' : isExtraTime ? '#a78bfa' : isPenalties ? '#fb923c' : isDelayed ? '#ffa032' : 'rgba(255,255,255,0.5)',
         px: 2,
         py: 1,
         alignSelf: { xs: 'center', md: 'auto' },
         borderRadius: '8px',
-        border: isLive ? '1px solid rgba(253,64,64,0.25)' : isCompleted ? '1px solid rgba(99,202,132,0.2)' : isHalftime ? '1px solid rgba(100,160,255,0.2)' : isDelayed ? '1px solid rgba(255,160,50,0.2)' : '1px solid rgba(255,255,255,0.08)',
+        border: isLive ? '1px solid rgba(253,64,64,0.25)' : isCompleted ? '1px solid rgba(99,202,132,0.2)' : isHalftime ? '1px solid rgba(100,160,255,0.2)' : isExtraTime ? '1px solid rgba(167,139,250,0.2)' : isPenalties ? '1px solid rgba(251,146,60,0.2)' : isDelayed ? '1px solid rgba(255,160,50,0.2)' : '1px solid rgba(255,255,255,0.08)',
         flexShrink: 0,
       }}>
         <Typography sx={{ fontSize: { xs: 10, md: 13 }, fontWeight: 600 }}>{translate(match)}</Typography>
@@ -453,6 +455,8 @@ function translate(match: any) {
     case 'playing':
       return match.phase && PHASE_LABELS[match.phase] ? PHASE_LABELS[match.phase] : 'Ao vivo'
     case 'halftime': return 'Intervalo'
+    case 'extra_time': return match.phase === 'ET2' ? 'Prorrog. 2T' : 'Prorrogação'
+    case 'penalties': return 'Pênaltis'
     case 'delayed': return 'Atrasado'
     case 'completed':
     case 'completes': return 'Finalizado'

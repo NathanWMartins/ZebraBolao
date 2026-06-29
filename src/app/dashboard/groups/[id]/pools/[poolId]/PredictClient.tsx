@@ -591,7 +591,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
           })
           .sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())
 
-        const liveStatuses = ['live','in_play','playing','halftime','delayed']
+        const liveStatuses = ['live','in_play','playing','halftime','delayed','extra_time','penalties']
         const isMatchStarted = (m: Match) =>
           m.status === 'completed' ||
           liveStatuses.includes(m.status) ||
@@ -660,7 +660,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
               const isStarted = matchDate < new Date()
               const currentChoice = prediction?.prediction
               const isCompleted = match.status === 'completed'
-              const isLive = ['live', 'in_play', 'playing', 'halftime', 'delayed'].includes(match.status)
+              const isLive = ['live', 'in_play', 'playing', 'halftime', 'delayed', 'extra_time', 'penalties'].includes(match.status)
               const phaseLabel: Record<string, string> = {
                 '1H': '1º TEMPO', 'HT': 'INTERVALO', '2H': '2º TEMPO',
                 'ET1': 'PRORROG.', 'ET2': 'PRORROG.', 'PEN': 'PÊNALTIS',
@@ -742,7 +742,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                         </Box>
                       )}
                       {!isCompleted && isLive && (
-                        <Box sx={{ px: 1, bgcolor: match.phase === 'HT' ? '#ff9800' : '#ff4444', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{ px: 1, bgcolor: match.phase === 'HT' ? '#ff9800' : ['ET1','ET2'].includes(match.phase ?? '') ? '#a78bfa' : match.phase === 'PEN' || match.status === 'penalties' ? '#fb923c' : '#ff4444', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
                           <Typography sx={{ color: '#fff', fontSize: 9, fontWeight: 900 }}>{liveBadge}</Typography>
                         </Box>
                       )}

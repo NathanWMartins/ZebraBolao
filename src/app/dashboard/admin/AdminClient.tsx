@@ -547,6 +547,8 @@ const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => a
                                         <MenuItem value="scheduled">Scheduled</MenuItem>
                                         <MenuItem value="live">Live</MenuItem>
                                         <MenuItem value="halftime">Intervalo</MenuItem>
+                                        <MenuItem value="extra_time">Prorrogação</MenuItem>
+                                        <MenuItem value="penalties">Pênaltis</MenuItem>
                                         <MenuItem value="delayed">Atrasado</MenuItem>
                                         <MenuItem value="completed">Completed</MenuItem>
                                     </Select>
