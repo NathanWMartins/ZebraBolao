@@ -50,6 +50,8 @@ interface Match {
   phase?: string | null
   home_score: number | null
   away_score: number | null
+  home_pen_score?: number | null
+  away_pen_score?: number | null
 }
 
 interface Prediction {
@@ -853,6 +855,9 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                         <Typography sx={{ color: isDisabled && currentChoice !== 'Time A' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
                           {currentChoice === 'Time A' ? 'ESCOLHIDO' : 'VENCE'}
                         </Typography>
+                        {isCompleted && match.home_pen_score != null && match.away_pen_score != null && match.home_pen_score > match.away_pen_score && (
+                          <Typography sx={{ color: '#63ca84', fontSize: 9, fontWeight: 900, mt: 0.5, letterSpacing: '0.5px' }}>✓ PASSOU</Typography>
+                        )}
                       </Box>
 
                       {/* Draw Selection */}
@@ -885,6 +890,14 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                         }}>
                           {match.home_score !== null ? `${match.home_score} x ${match.away_score}` : 'X'}
                         </Typography>
+                        {match.home_pen_score != null && match.away_pen_score != null && (
+                          <Box sx={{ mt: 0.75, px: 1.5, py: 0.4, bgcolor: 'rgba(255,204,68,0.1)', border: '1px solid rgba(255,204,68,0.3)', borderRadius: '6px' }}>
+                            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pênaltis</Typography>
+                            <Typography sx={{ color: '#ffcc44', fontSize: 14, fontWeight: 900, letterSpacing: '1px' }}>
+                              {match.home_pen_score} x {match.away_pen_score}
+                            </Typography>
+                          </Box>
+                        )}
                         <Typography sx={{
                           color: currentChoice === 'Empate' ? '#fff' : 'rgba(255,255,255,0.2)',
                           fontSize: 9,
@@ -924,6 +937,9 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                         <Typography sx={{ color: isDisabled && currentChoice !== 'Time B' ? 'transparent' : 'rgba(255,255,255,0.2)', fontSize: 9, mt: 0.5, fontWeight: 800 }}>
                           {currentChoice === 'Time B' ? 'ESCOLHIDO' : 'VENCE'}
                         </Typography>
+                        {isCompleted && match.home_pen_score != null && match.away_pen_score != null && match.away_pen_score > match.home_pen_score && (
+                          <Typography sx={{ color: '#63ca84', fontSize: 9, fontWeight: 900, mt: 0.5, letterSpacing: '0.5px' }}>✓ PASSOU</Typography>
+                        )}
                       </Box>
                     </Box>
                   )}

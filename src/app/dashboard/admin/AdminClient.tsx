@@ -63,11 +63,13 @@ export default function AdminClient({
     groupStandings: GroupStandingEntry[]
     scoredMatchIds: string[]
 }) {
-    const [matchStates, setMatchStates] = useState<Record<string, { status: string, home_score: string, away_score: string }>>(
+    const [matchStates, setMatchStates] = useState<Record<string, { status: string, home_score: string, away_score: string, home_pen_score: string, away_pen_score: string }>>(
         () => Object.fromEntries(matches.map(m => [m.id, {
             status: m.status,
             home_score: m.home_score?.toString() ?? '',
             away_score: m.away_score?.toString() ?? '',
+            home_pen_score: (m as any).home_pen_score?.toString() ?? '',
+            away_pen_score: (m as any).away_pen_score?.toString() ?? '',
         }]))
     )
     const [savingMatch, setSavingMatch] = useState<string | null>(null)
@@ -263,6 +265,8 @@ export default function AdminClient({
                 s.status,
                 s.home_score !== '' ? Number(s.home_score) : null,
                 s.away_score !== '' ? Number(s.away_score) : null,
+                s.home_pen_score !== '' ? Number(s.home_pen_score) : null,
+                s.away_pen_score !== '' ? Number(s.away_pen_score) : null,
             )
             setMatchFeedback(prev => ({ ...prev, [id]: { ok: true, msg: 'Salvo com sucesso' } }))
         } catch (e: any) {
@@ -569,6 +573,28 @@ const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => a
                                         slotProps={{ htmlInput: { style: { color: '#fff', width: 48, textAlign: 'center' } } }}
                                         sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', width: 70 }}
                                     />
+                                    {!match.round.toLowerCase().startsWith('group') && (s.status === 'penalties' || s.status === 'completed') && (
+                                        <>
+                                            <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 600 }}>pen</Typography>
+                                            <TextField
+                                                value={s.home_pen_score}
+                                                onChange={e => setMatchStates(prev => ({ ...prev, [match.id]: { ...prev[match.id], home_pen_score: e.target.value } }))}
+                                                placeholder="C"
+                                                size="small"
+                                                slotProps={{ htmlInput: { style: { color: '#fff', width: 24, textAlign: 'center', fontSize: 12, padding: '4px 2px' } } }}
+                                                sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', width: 46 }}
+                                            />
+                                            <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>x</Typography>
+                                            <TextField
+                                                value={s.away_pen_score}
+                                                onChange={e => setMatchStates(prev => ({ ...prev, [match.id]: { ...prev[match.id], away_pen_score: e.target.value } }))}
+                                                placeholder="F"
+                                                size="small"
+                                                slotProps={{ htmlInput: { style: { color: '#fff', width: 24, textAlign: 'center', fontSize: 12, padding: '4px 2px' } } }}
+                                                sx={{ '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, bgcolor: 'rgba(255,255,255,0.04)', width: 46 }}
+                                            />
+                                        </>
+                                    )}
                                     <Button
                                         onClick={() => handleSaveMatch(match.id)}
                                         disabled={saving}

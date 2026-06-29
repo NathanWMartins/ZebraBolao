@@ -39,6 +39,8 @@ interface Match {
   status: string
   home_score: number | null
   away_score: number | null
+  home_pen_score?: number | null
+  away_pen_score?: number | null
 }
 
 interface Prediction {
@@ -202,22 +204,29 @@ export default function PredictionsModal({ open, onClose, poolId, poolType = 'wi
                       </Typography>
 
                       {hasResult ? (
-                        <Box sx={{
-                          bgcolor: 'rgba(255,255,255,0.1)',
-                          px: 1.5,
-                          py: 0.5,
-                          borderRadius: '6px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 1
-                        }}>
-                          <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: 14 }}>
-                            {match.home_score}
-                          </Typography>
-                          <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontWeight: 900, fontSize: 12 }}>x</Typography>
-                          <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: 14 }}>
-                            {match.away_score}
-                          </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25 }}>
+                          <Box sx={{
+                            bgcolor: 'rgba(255,255,255,0.1)',
+                            px: 1.5,
+                            py: 0.5,
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}>
+                            <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: 14 }}>
+                              {match.home_score}
+                            </Typography>
+                            <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontWeight: 900, fontSize: 12 }}>x</Typography>
+                            <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: 14 }}>
+                              {match.away_score}
+                            </Typography>
+                          </Box>
+                          {match.home_pen_score != null && match.away_pen_score != null && (
+                            <Typography sx={{ color: '#ffcc44', fontSize: 10, fontWeight: 700 }}>
+                              pen {match.home_pen_score} x {match.away_pen_score}
+                            </Typography>
+                          )}
                         </Box>
                       ) : (
                         <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontWeight: 900, fontSize: 12 }}>vs</Typography>

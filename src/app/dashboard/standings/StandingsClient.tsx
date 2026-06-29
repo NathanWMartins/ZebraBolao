@@ -34,6 +34,8 @@ export interface KnockoutMatch {
   status: string
   home_score: number | null
   away_score: number | null
+  home_pen_score?: number | null
+  away_pen_score?: number | null
 }
 
 interface Props {
@@ -166,8 +168,11 @@ function BracketCard({ match, compact, winner }: { match: KnockoutMatch | null, 
   const isCompleted = match?.status === 'completed'
   const flagSize = compact ? 18 : 22
 
-  const homeWon = isCompleted && match && match.home_score !== null && match.away_score !== null && match.home_score > match.away_score
-  const awayWon = isCompleted && match && match.home_score !== null && match.away_score !== null && match.away_score > match.home_score
+  const hasPen = match?.home_pen_score != null && match?.away_pen_score != null
+  const homeWon = isCompleted && match && match.home_score !== null && match.away_score !== null &&
+    (hasPen ? (match.home_pen_score! > match.away_pen_score!) : match.home_score > match.away_score)
+  const awayWon = isCompleted && match && match.home_score !== null && match.away_score !== null &&
+    (hasPen ? (match.away_pen_score! > match.home_pen_score!) : match.away_score > match.home_score)
 
   const TeamRow = ({ team, score, won }: { team: string | null, score: number | null, won: boolean }) => (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: compact ? 0.6 : 0.75, py: compact ? 0.4 : 0.5 }}>
@@ -212,6 +217,11 @@ function BracketCard({ match, compact, winner }: { match: KnockoutMatch | null, 
       <TeamRow team={match?.home_team ?? null} score={match?.home_score ?? null} won={!!homeWon} />
       <Box sx={{ height: '1px', bgcolor: 'rgba(255,255,255,0.05)' }} />
       <TeamRow team={match?.away_team ?? null} score={match?.away_score ?? null} won={!!awayWon} />
+      {hasPen && (
+        <Typography sx={{ color: '#ffcc44', fontSize: compact ? 8 : 9, fontWeight: 700, textAlign: 'right', mt: 0.25 }}>
+          pen {match!.home_pen_score} x {match!.away_pen_score}
+        </Typography>
+      )}
       {match && (
         <Typography sx={{ color: isLive ? '#fd4040' : 'rgba(255,255,255,0.2)', fontSize: compact ? 8 : 9, fontWeight: 600, textAlign: 'right', mt: 0.25 }}>
           {isLive ? '● AO VIVO' : `${new Date(match.match_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })} · ${new Date(match.match_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}h`}

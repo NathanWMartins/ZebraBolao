@@ -121,12 +121,12 @@ export async function decrementTeamCard(team: string, cardType: 'yellow' | 'red'
   }
 }
 
-export async function updateMatch(id: string, status: string, homeScore: number | null, awayScore: number | null) {
+export async function updateMatch(id: string, status: string, homeScore: number | null, awayScore: number | null, homePenScore: number | null = null, awayPenScore: number | null = null) {
   const supabase = await checkAdmin()
 
   const { error } = await supabase
     .from('matches')
-    .update({ status, home_score: homeScore, away_score: awayScore })
+    .update({ status, home_score: homeScore, away_score: awayScore, home_pen_score: homePenScore, away_pen_score: awayPenScore })
     .eq('id', id)
 
   if (error) throw new Error(error.message)

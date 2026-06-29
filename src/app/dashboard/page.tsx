@@ -392,10 +392,17 @@ function MatchCard({ match }: { match: any }) {
 
           {/* Placar ou vs */}
           {match.home_score !== null && match.away_score !== null ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, bgcolor: 'rgba(255,255,255,0.05)', px: 1.25, py: 0.4, borderRadius: '6px' }}>
-              <Typography sx={{ fontSize: { xs: 13, md: 15 }, fontWeight: 700, color: '#C9940A' }}>{match.home_score}</Typography>
-              <Typography sx={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>x</Typography>
-              <Typography sx={{ fontSize: { xs: 13, md: 15 }, fontWeight: 700, color: '#C9940A' }}>{match.away_score}</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, bgcolor: 'rgba(255,255,255,0.05)', px: 1.25, py: 0.4, borderRadius: '6px' }}>
+                <Typography sx={{ fontSize: { xs: 13, md: 15 }, fontWeight: 700, color: '#C9940A' }}>{match.home_score}</Typography>
+                <Typography sx={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>x</Typography>
+                <Typography sx={{ fontSize: { xs: 13, md: 15 }, fontWeight: 700, color: '#C9940A' }}>{match.away_score}</Typography>
+              </Box>
+              {match.home_pen_score != null && match.away_pen_score != null && (
+                <Typography sx={{ fontSize: 10, color: '#ffcc44', fontWeight: 700, mt: 0.25 }}>
+                  pen {match.home_pen_score} x {match.away_pen_score}
+                </Typography>
+              )}
             </Box>
           ) : (
             <Typography sx={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>vs</Typography>
