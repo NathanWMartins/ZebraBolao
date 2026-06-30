@@ -8,7 +8,7 @@ import {
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import Link from 'next/link'
-import { updateMatch, incrementStat, decrementStat, addPlayerStat, processMatchAndCalculate, recalculateAllScores, recalculateKnockoutScores, addTeamCard, decrementTeamCard, setSyncPaused, runSync, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry, getMatchHits, notifyMatchHits, MatchHit } from '../admin-actions'
+import { updateMatch, incrementStat, decrementStat, addPlayerStat, processMatchAndCalculate, recalculateAllScores, recalculateKnockoutScores, recalculateGlobalRanking, addTeamCard, decrementTeamCard, setSyncPaused, runSync, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry, getMatchHits, notifyMatchHits, MatchHit } from '../admin-actions'
 import { translateTeam } from '@/lib/teamTranslations'
 import { getFlagUrl } from '@/lib/teamFlags'
 import TeamFlag from '@/app/components/TeamFlag'
@@ -84,6 +84,8 @@ export default function AdminClient({
     const [recalcResult, setRecalcResult] = useState<{ ok: boolean; msg: string } | null>(null)
     const [recalcKnockout, setRecalcKnockout] = useState(false)
     const [recalcKnockoutResult, setRecalcKnockoutResult] = useState<{ ok: boolean; msg: string } | null>(null)
+    const [recalcGlobal, setRecalcGlobal] = useState(false)
+    const [recalcGlobalResult, setRecalcGlobalResult] = useState<{ ok: boolean; msg: string } | null>(null)
 
     // Modal de notificações por jogo
     const [notifModalMatchId, setNotifModalMatchId] = useState<string | null>(null)
@@ -130,6 +132,19 @@ export default function AdminClient({
             setRecalcKnockoutResult({ ok: false, msg: e.message })
         } finally {
             setRecalcKnockout(false)
+        }
+    }
+
+    const handleRecalculateGlobal = async () => {
+        setRecalcGlobal(true)
+        setRecalcGlobalResult(null)
+        try {
+            const res = await recalculateGlobalRanking()
+            setRecalcGlobalResult({ ok: true, msg: res.matchesProcessed === 0 ? 'Nenhum jogo processado' : `${res.matchesProcessed} jogo(s) processados` })
+        } catch (e: any) {
+            setRecalcGlobalResult({ ok: false, msg: e.message })
+        } finally {
+            setRecalcGlobal(false)
         }
     }
 
@@ -453,6 +468,35 @@ const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => a
                     }}
                 >
                     {recalcKnockout ? 'Calculando...' : '🏆 Recalcular Mata-Mata'}
+                </Button>
+            </Box>
+
+            {/* Recalcular Ranking Global */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', mb: 2 }}>
+                <Box>
+                    <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>Recalcular Ranking Global</Typography>
+                    <Typography sx={{ color: recalcGlobalResult ? (recalcGlobalResult.ok ? '#4caf50' : '#ff6b6b') : 'rgba(255,255,255,0.4)', fontSize: 11 }}>
+                        {recalcGlobalResult ? recalcGlobalResult.msg : 'Reconstrói pontos por jogo (independente de bolão)'}
+                    </Typography>
+                </Box>
+                <Button
+                    onClick={handleRecalculateGlobal}
+                    disabled={recalcGlobal}
+                    size="small"
+                    variant="outlined"
+                    startIcon={recalcGlobal ? <CircularProgress size={12} color="inherit" /> : undefined}
+                    sx={{
+                        color: '#34d399',
+                        borderColor: 'rgba(52,211,153,0.4)',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        textTransform: 'none',
+                        px: 2,
+                        '&:hover': { borderColor: '#34d399', bgcolor: 'rgba(52,211,153,0.08)' },
+                        '&.Mui-disabled': { color: 'rgba(52,211,153,0.3)', borderColor: 'rgba(52,211,153,0.2)' },
+                    }}
+                >
+                    {recalcGlobal ? 'Calculando...' : '🌍 Recalcular Global'}
                 </Button>
             </Box>
 

@@ -351,11 +351,131 @@ export async function calculateScoresForMatch(matchId: string): Promise<{ poolsU
         }, { onConflict: 'user_id, pool_id' })
     }
 
+    // Grava pontos por jogo na tabela user_match_points (para ranking global justo)
+    // Usa apenas o palpite do bolão mais antigo por usuário (anti-burla)
+    for (const m of completedMatches) {
+      const h = m.home_score as number
+      const a = m.away_score as number
+      const actualResult = h > a ? 'Time A' : a > h ? 'Time B' : 'Empate'
+      const exactScore = `${h}-${a}`
+      const pts = getPointsForRound(m.round)
+
+      // Busca palpites desse jogo em TODOS os bolões com created_at do bolão
+      const { data: allMatchPreds } = await supabase
+        .from('predictions')
+        .select('user_id, prediction, pool_id, pools(created_at, type)')
+        .eq('match_id', m.id)
+
+      if (!allMatchPreds || allMatchPreds.length === 0) continue
+
+      // Por usuário, pega só o palpite do bolão mais antigo
+      const userOldestPred: Record<string, { prediction: string; poolType: string; poolCreatedAt: string }> = {}
+      for (const pred of allMatchPreds) {
+        const poolData = (pred as any).pools
+        if (!poolData) continue
+        const existing = userOldestPred[pred.user_id]
+        if (!existing || poolData.created_at < existing.poolCreatedAt) {
+          userOldestPred[pred.user_id] = {
+            prediction: pred.prediction,
+            poolType: poolData.type,
+            poolCreatedAt: poolData.created_at,
+          }
+        }
+      }
+
+      for (const [userId, { prediction, poolType }] of Object.entries(userOldestPred)) {
+        let earned = 0
+        if (poolType === 'score') {
+          if (prediction === exactScore) earned = pts
+        } else {
+          if (prediction === actualResult) earned = pts
+        }
+        if (earned > 0) {
+          await supabase
+            .from('user_match_points')
+            .upsert({ user_id: userId, match_id: m.id, points: earned }, { onConflict: 'user_id, match_id' })
+        }
+      }
+    }
+
     poolsUpdated++
   }
 
   revalidatePath('/dashboard/admin')
   return { poolsUpdated }
+}
+
+export async function recalculateGlobalRanking(): Promise<{ matchesProcessed: number }> {
+  const supabase = await checkAdmin()
+
+  // Limpa tabela e reconstrói do zero
+  await supabase.from('user_match_points').delete().neq('match_id', '00000000-0000-0000-0000-000000000000')
+
+  const { data: completedMatches } = await supabase
+    .from('matches')
+    .select('id, home_score, away_score, round, status')
+    .eq('status', 'completed')
+    .not('home_score', 'is', null)
+    .not('away_score', 'is', null)
+
+  if (!completedMatches || completedMatches.length === 0) return { matchesProcessed: 0 }
+
+  const { data: pools } = await supabase.from('pools').select('id, type, match_ids')
+  if (!pools) return { matchesProcessed: 0 }
+
+  for (const m of completedMatches) {
+    const h = m.home_score as number
+    const a = m.away_score as number
+    const actualResult = h > a ? 'Time A' : a > h ? 'Time B' : 'Empate'
+    const exactScore = `${h}-${a}`
+    const pts = getPointsForRound(m.round)
+
+    // Busca todos os palpites para esse jogo em todos os bolões, junto com created_at do bolão
+    const { data: matchPredictions } = await supabase
+      .from('predictions')
+      .select('user_id, match_id, prediction, pool_id, pools(created_at, type)')
+      .eq('match_id', m.id)
+
+    if (!matchPredictions || matchPredictions.length === 0) continue
+
+    // Por usuário, usa apenas o palpite do bolão mais antigo (anti-burla)
+    const userOldestPred: Record<string, { prediction: string; poolType: string; poolCreatedAt: string }> = {}
+    for (const pred of matchPredictions) {
+      const poolData = (pred as any).pools
+      if (!poolData) continue
+      const existing = userOldestPred[pred.user_id]
+      if (!existing || poolData.created_at < existing.poolCreatedAt) {
+        userOldestPred[pred.user_id] = {
+          prediction: pred.prediction,
+          poolType: poolData.type,
+          poolCreatedAt: poolData.created_at,
+        }
+      }
+    }
+
+    const userEarned: Record<string, number> = {}
+    for (const [userId, { prediction, poolType }] of Object.entries(userOldestPred)) {
+      let earned = 0
+      if (poolType === 'score') {
+        if (prediction === exactScore) earned = pts
+      } else {
+        if (prediction === actualResult) earned = pts
+      }
+      if (earned > 0) userEarned[userId] = earned
+    }
+
+    for (const [userId, earned] of Object.entries(userEarned)) {
+      if (earned > 0) {
+        await supabase
+          .from('user_match_points')
+          .upsert({ user_id: userId, match_id: m.id, points: earned }, { onConflict: 'user_id, match_id' })
+      }
+    }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/my-groups')
+  return { matchesProcessed: completedMatches.length }
 }
 
 // Retorna quem acertou o jogo, agrupado por bolão

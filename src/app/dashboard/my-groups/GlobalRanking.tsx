@@ -238,11 +238,26 @@ export default function GlobalRanking({
                   </Typography>
 
                   {/* Pontos */}
-                  <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'right', flexShrink: 0 }}>
-                    <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>
-                      {entry.total_points}
-                    </Typography>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>pts</Typography>
+                  <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+                    {entry.last_match_points != null && (
+                      <Box sx={{
+                        px: 1, py: 0.25,
+                        bgcolor: 'rgba(52,211,153,0.12)',
+                        border: '1px solid rgba(52,211,153,0.3)',
+                        borderRadius: '6px',
+                        mr: 1
+                      }}>
+                        <Typography sx={{ color: '#34d399', fontSize: 11, fontWeight: 800 }}>
+                          +{entry.last_match_points}
+                        </Typography>
+                      </Box>
+                    )}
+                    <Box sx={{ textAlign: 'right' }}>
+                      <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>
+                        {entry.total_points}
+                      </Typography>
+                      <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>pts</Typography>
+                    </Box>
                   </Box>
                 </Box>
               )

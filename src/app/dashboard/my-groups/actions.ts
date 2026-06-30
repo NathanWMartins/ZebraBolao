@@ -25,6 +25,7 @@ export type GlobalRankingEntry = {
   username: string
   avatar_url: string | null
   total_points: number
+  last_match_points: number | null
   isCurrentUser: boolean
 }
 
@@ -59,45 +60,20 @@ export async function getGlobalRanking(): Promise<{
 
   const participantIds = participants.map((p: any) => p.user_id)
 
-  // Para cada participante, busca seus scores agrupados por grupo
-  // Lógica: de cada grupo, pega o bolão onde o usuário tem mais pontos → soma entre grupos
-  const { data: scores } = await admin
-    .from('scores')
-    .select('user_id, pool_id, group_id, total_points')
+  // Soma pontos por jogo único por usuário (tabela user_match_points)
+  const { data: matchPoints } = await admin
+    .from('user_match_points')
+    .select('user_id, match_id, points')
     .in('user_id', participantIds)
 
-  if (!scores || scores.length === 0) {
-    // Participantes sem pontos ainda: mostra todos com 0
-    const { data: profiles } = await admin
-      .from('profiles')
-      .select('id, username, avatar_url')
-      .in('id', participantIds)
-
-    const profileMap: Record<string, any> = {}
-    profiles?.forEach((p: any) => { profileMap[p.id] = p })
-
-    const ranking = participantIds.map((uid: string, i: number) => ({
-      position: i + 1,
-      user_id: uid,
-      username: profileMap[uid]?.username ?? 'Usuário',
-      avatar_url: profileMap[uid]?.avatar_url ?? null,
-      total_points: 0,
-      isCurrentUser: uid === user?.id,
-    }))
-
-    return { ranking, isParticipant, currentUserId: user?.id ?? null }
-  }
-
-  // Pega o maior total_points de um único bolão por usuário (independente de grupo)
-  const userTotals: Record<string, number> = {}
-
-  for (const score of scores) {
-    if (!participantIds.includes(score.user_id)) continue
-    const current = userTotals[score.user_id] ?? 0
-    if (score.total_points > current) {
-      userTotals[score.user_id] = score.total_points
-    }
-  }
+  // Busca o último jogo completed globalmente
+  const { data: lastMatch } = await admin
+    .from('matches')
+    .select('id')
+    .eq('status', 'completed')
+    .order('match_date', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
   // Busca profiles
   const { data: profiles } = await admin
@@ -108,6 +84,16 @@ export async function getGlobalRanking(): Promise<{
   const profileMap: Record<string, any> = {}
   profiles?.forEach((p: any) => { profileMap[p.id] = p })
 
+  // Soma total e captura pontos do último jogo por usuário
+  const userTotals: Record<string, number> = {}
+  const userLastPoints: Record<string, number> = {}
+  for (const row of (matchPoints ?? [])) {
+    userTotals[row.user_id] = (userTotals[row.user_id] ?? 0) + row.points
+    if (lastMatch && row.match_id === lastMatch.id) {
+      userLastPoints[row.user_id] = row.points
+    }
+  }
+
   // Monta ranking ordenado por pontos desc
   const sorted = participantIds
     .map((uid: string) => ({
@@ -115,6 +101,7 @@ export async function getGlobalRanking(): Promise<{
       username: profileMap[uid]?.username ?? 'Usuário',
       avatar_url: profileMap[uid]?.avatar_url ?? null,
       total_points: userTotals[uid] ?? 0,
+      last_match_points: userLastPoints[uid] ?? null,
       isCurrentUser: uid === user?.id,
     }))
     .sort((a: any, b: any) => b.total_points - a.total_points)
