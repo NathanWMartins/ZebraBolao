@@ -4,7 +4,7 @@
  * Stats (gols, cartões) e pontos são processados exclusivamente pelo botão no admin.
  */
 import { NextResponse } from 'next/server'
-import { getMatchesAPI, getKnockoutMatchesAPI, checkAndReserveApiCalls } from '@/lib/wc2026'
+import { getMatchesAPI, getKnockoutMatchesAPI, checkAndReserveApiCalls, KNOCKOUT_ROUNDS } from '@/lib/wc2026'
 import { createAdminClient } from '@/lib/supabase-admin'
 import type { WC2026MatchAPI } from '@/lib/wc2026'
 
@@ -104,19 +104,49 @@ export async function GET(request: Request) {
       }
     }
 
-    // Busca jogos da API e faz upsert
-    await checkAndReserveApiCalls(1)
-    const groupApiMatches = await getMatchesAPI('group')
-    const groupCount = await upsertMatches(supabaseAdmin, groupApiMatches)
+    // Verifica se fase de grupos já está completa no banco (evita chamada desnecessária à API)
+    const { data: dbGroupMatches } = await supabaseAdmin
+      .from('matches')
+      .select('status')
+      .eq('round', 'group')
 
-    const allGroupCompleted = groupApiMatches.every((m) => m.status === 'completed')
+    const allGroupCompletedInDb = (dbGroupMatches ?? []).length > 0 &&
+      (dbGroupMatches ?? []).every((m: any) => m.status === 'completed')
 
+    let groupCount = 0
     let knockoutCount = 0
-    // No force: sempre busca knockout. No cron: só busca se fase de grupos finalizada.
+    let allGroupCompleted = allGroupCompletedInDb
+
+    if (!allGroupCompletedInDb) {
+      // Fase de grupos ainda em andamento: busca grupos
+      await checkAndReserveApiCalls(1)
+      const groupApiMatches = await getMatchesAPI('group')
+      groupCount = await upsertMatches(supabaseAdmin, groupApiMatches)
+      allGroupCompleted = groupApiMatches.every((m) => m.status === 'completed')
+    }
+
+    // Busca knockout se fase de grupos finalizada
     if (forceSync || allGroupCompleted) {
-      await checkAndReserveApiCalls(6)
-      const knockoutApiMatches = await getKnockoutMatchesAPI()
-      knockoutCount = await upsertMatches(supabaseAdmin, knockoutApiMatches)
+      // Descobre quais rounds têm jogos não-completed no banco (ativos ou futuros)
+      const { data: dbKnockoutMatches } = await supabaseAdmin
+        .from('matches')
+        .select('round, status')
+        .in('round', KNOCKOUT_ROUNDS)
+
+      // Rounds com jogos ativos ou futuros (não todos completed)
+      const activeRounds = forceSync
+        ? KNOCKOUT_ROUNDS
+        : KNOCKOUT_ROUNDS.filter(round => {
+            const roundMatches = (dbKnockoutMatches ?? []).filter((m: any) => m.round === round)
+            // Inclui rounds sem jogos ainda (futuros) ou com algum jogo não-completed
+            return roundMatches.length === 0 || roundMatches.some((m: any) => m.status !== 'completed')
+          })
+
+      if (activeRounds.length > 0) {
+        await checkAndReserveApiCalls(activeRounds.length)
+        const knockoutApiMatches = await getKnockoutMatchesAPI(activeRounds)
+        knockoutCount = await upsertMatches(supabaseAdmin, knockoutApiMatches)
+      }
     }
 
     // Atualiza status dos pools
