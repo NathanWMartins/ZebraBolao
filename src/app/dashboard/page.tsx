@@ -65,14 +65,14 @@ export default async function DashboardPage() {
     .select('*')
     .gt('goals', 0)
     .order('goals', { ascending: false })
-    .limit(5)
+    .limit(7)
 
   const { data: topAssists } = await supabase
     .from('player_stats')
     .select('*')
     .gt('assists', 0)
     .order('assists', { ascending: false })
-    .limit(5)
+    .limit(7)
 
   const { data: teamStatsRaw } = await supabase
     .from('team_stats')
@@ -80,7 +80,7 @@ export default async function DashboardPage() {
     .or('yellow_cards.gt.0,red_cards.gt.0')
   const teamStats = (teamStatsRaw ?? [])
     .sort((a: any, b: any) => (b.yellow_cards + b.red_cards) - (a.yellow_cards + a.red_cards))
-    .slice(0, 8)
+    .slice(0, 10)
 
   const showStats = !!(topScorers?.length || topAssists?.length || teamStats?.length)
 

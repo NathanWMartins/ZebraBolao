@@ -65,7 +65,8 @@ function PlayerStatCard({ player, stat, statLabel, rank, isAdmin, statField }: {
 export default function TournamentStats({ topScorers, topAssists, teamStats, isAdmin, showStats }: { topScorers: any[], topAssists: any[], teamStats: any[], isAdmin: boolean, showStats: boolean }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  
+  const [activeTab, setActiveTab] = useState<'scorers' | 'assists' | 'cards'>('scorers')
+
   // Form state
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
   const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null)
@@ -89,16 +90,16 @@ export default function TournamentStats({ topScorers, topAssists, teamStats, isA
     setAssists(0)
   }
 
+  const tabs = [
+    { key: 'scorers', label: 'Artilheiros', icon: <SportsSoccerIcon sx={{ fontSize: 14 }} /> },
+    { key: 'assists', label: 'Assistências', icon: <EmojiEventsIcon sx={{ fontSize: 14 }} /> },
+    { key: 'cards', label: 'Cartões', icon: <Box sx={{ width: 9, height: 12, bgcolor: 'currentColor', borderRadius: '1px', flexShrink: 0 }} /> },
+  ] as const
+
   return (
     <Box component="section" sx={{ flex: { xs: '1 1 auto', md: '1 1 0%' } }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Typography sx={{
-          fontSize: 14,
-          fontWeight: 500,
-          color: 'rgba(255,255,255,0.6)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-        }}>
+        <Typography sx={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Estatísticas
         </Typography>
         {isAdmin && (
@@ -108,142 +109,88 @@ export default function TournamentStats({ topScorers, topAssists, teamStats, isA
         )}
       </Box>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {/* Artilheiros */}
-        <Box sx={{ bgcolor: 'rgba(0,0,0,0.5)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '12px', overflow: 'hidden' }}>
-          <Box sx={{ bgcolor: 'rgba(201,148,10,0.1)', px: 2, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 1 }}>
-            <SportsSoccerIcon sx={{ color: '#C9940A', fontSize: 18 }} />
-            <Typography sx={{ color: '#C9940A', fontSize: 13, fontWeight: 700, textTransform: 'uppercase' }}>Artilheiros</Typography>
-          </Box>
-          <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {showStats && topScorers && topScorers.length > 0 ? (
-              topScorers.map((player: any, idx: number) => (
-                <PlayerStatCard key={player.id} player={player} stat={player.goals} statLabel="gols" rank={idx + 1} isAdmin={isAdmin} statField="goals" />
-              ))
-            ) : (
-              <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, textAlign: 'center', py: 2 }}>
-                Nenhum gol registrado.
-              </Typography>
-            )}
-          </Box>
-        </Box>
-
-        {/* Assistentes */}
-        <Box sx={{ bgcolor: 'rgba(0,0,0,0.5)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '12px', overflow: 'hidden' }}>
-          <Box sx={{ bgcolor: 'rgba(201,148,10,0.1)', px: 2, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 1 }}>
-            <EmojiEventsIcon sx={{ color: '#C9940A', fontSize: 18 }} />
-            <Typography sx={{ color: '#C9940A', fontSize: 13, fontWeight: 700, textTransform: 'uppercase' }}>Assistências</Typography>
-          </Box>
-          <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {showStats && topAssists && topAssists.length > 0 ? (
-              topAssists.map((player: any, idx: number) => (
-                <PlayerStatCard key={player.id} player={player} stat={player.assists} statLabel="assistências" rank={idx + 1} isAdmin={isAdmin} statField="assists" />
-              ))
-            ) : (
-              <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, textAlign: 'center', py: 2 }}>
-                Nenhuma assistência registrada.
-              </Typography>
-            )}
-          </Box>
-        </Box>
-
-        {/* Cartões por seleção */}
-        {teamStats && teamStats.length > 0 && (
-          <Box sx={{ bgcolor: 'rgba(0,0,0,0.5)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '12px', overflow: 'hidden' }}>
-            <Box sx={{ bgcolor: 'rgba(245,197,24,0.08)', px: 2, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box sx={{ width: 10, height: 14, bgcolor: '#f5c518', borderRadius: '1px' }} />
-              <Typography sx={{ color: '#f5c518', fontSize: 13, fontWeight: 700, textTransform: 'uppercase' }}>Cartões</Typography>
-            </Box>
-            <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              {teamStats.map((t: any, idx: number) => (
-                <Box key={t.team} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 14, fontWeight: 700, width: 14 }}>{idx + 1}</Typography>
-                    <TeamFlag teamName={t.team} size={20} />
-                    <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>{translateTeam(t.team)}</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    {t.yellow_cards > 0 && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-                        <Box sx={{ width: 9, height: 12, bgcolor: '#f5c518', borderRadius: '1px' }} />
-                        <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 700 }}>{t.yellow_cards}</Typography>
-                      </Box>
-                    )}
-                    {t.red_cards > 0 && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-                        <Box sx={{ width: 9, height: 12, bgcolor: '#ff4444', borderRadius: '1px' }} />
-                        <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 700 }}>{t.red_cards}</Typography>
-                      </Box>
-                    )}
-                  </Box>
+      <Box sx={{ bgcolor: '#0f0f0e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', overflow: 'hidden' }}>
+        {/* Tabs */}
+        <Box sx={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          {tabs.map(tab => {
+            const isActive = activeTab === tab.key
+            return (
+              <Box
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                sx={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 0.75,
+                  py: 1.25,
+                  cursor: 'pointer',
+                  borderBottom: '2px solid',
+                  borderColor: isActive ? '#C9940A' : 'transparent',
+                  bgcolor: isActive ? 'rgba(201,148,10,0.06)' : 'transparent',
+                  transition: 'all 0.15s',
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' },
+                }}
+              >
+                <Box sx={{ color: isActive ? '#C9940A' : 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center' }}>
+                  {tab.icon}
                 </Box>
-              ))}
-            </Box>
-          </Box>
-        )}
+                <Typography sx={{ color: isActive ? '#C9940A' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>
+                  {tab.label}
+                </Typography>
+              </Box>
+            )
+          })}
+        </Box>
+
+        {/* Conteúdo */}
+        <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5, minHeight: 120 }}>
+          {activeTab === 'scorers' && (
+            showStats && topScorers?.length > 0 ? topScorers.map((player: any, idx: number) => (
+              <PlayerStatCard key={player.id} player={player} stat={player.goals} statLabel="gols" rank={idx + 1} isAdmin={isAdmin} statField="goals" />
+            )) : (
+              <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, textAlign: 'center', py: 3 }}>Nenhum gol registrado.</Typography>
+            )
+          )}
+
+          {activeTab === 'assists' && (
+            showStats && topAssists?.length > 0 ? topAssists.map((player: any, idx: number) => (
+              <PlayerStatCard key={player.id} player={player} stat={player.assists} statLabel="assistências" rank={idx + 1} isAdmin={isAdmin} statField="assists" />
+            )) : (
+              <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, textAlign: 'center', py: 3 }}>Nenhuma assistência registrada.</Typography>
+            )
+          )}
+
+          {activeTab === 'cards' && (
+            teamStats?.length > 0 ? teamStats.map((t: any, idx: number) => (
+              <Box key={t.team} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 14, fontWeight: 700, width: 14 }}>{idx + 1}</Typography>
+                  <TeamFlag teamName={t.team} size={20} />
+                  <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>{translateTeam(t.team)}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  {t.yellow_cards > 0 && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                      <Box sx={{ width: 9, height: 12, bgcolor: '#f5c518', borderRadius: '1px' }} />
+                      <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 700 }}>{t.yellow_cards}</Typography>
+                    </Box>
+                  )}
+                  {t.red_cards > 0 && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                      <Box sx={{ width: 9, height: 12, bgcolor: '#ff4444', borderRadius: '1px' }} />
+                      <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 700 }}>{t.red_cards}</Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            )) : (
+              <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, textAlign: 'center', py: 3 }}>Nenhum cartão registrado.</Typography>
+            )
+          )}
+        </Box>
       </Box>
-
-      {/* Dialog para Adicionar Jogador */}
-      <Dialog open={open} onClose={() => setOpen(false)} sx={{ '& .MuiDialog-paper': { bgcolor: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', minWidth: 320 } }}>
-        <DialogTitle sx={{ color: '#fff' }}>Adicionar Estatística</DialogTitle>
-        <DialogContent>
-          <Stack spacing={3} sx={{ mt: 1 }}>
-            <Autocomplete
-              options={allTeams}
-              getOptionLabel={(o) => translateTeam(o)}
-              value={selectedTeam}
-              onChange={(_, val) => { setSelectedTeam(val); setSelectedPlayer(null) }}
-              renderInput={(params) => <TextField {...params} label="Seleção" variant="outlined" sx={{ '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.5)' }, input: { color: '#fff' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }} />}
-              renderOption={(props, option) => {
-                const { key, ...rest } = props as any;
-                return (
-                  <Box component="li" key={key} {...rest} sx={{ display: 'flex', gap: 1, alignItems: 'center', bgcolor: '#222', color: '#fff' }}>
-                    <TeamFlag teamName={option} size={20} />
-                    {translateTeam(option)}
-                  </Box>
-                )
-              }}
-              slotProps={{ paper: { sx: { bgcolor: '#222', color: '#fff' } } }}
-            />
-
-            <Autocomplete
-              options={teamPlayers}
-              getOptionLabel={(o) => o.name}
-              value={selectedPlayer}
-              disabled={!selectedTeam}
-              onChange={(_, val) => setSelectedPlayer(val)}
-              renderInput={(params) => <TextField {...params} label="Jogador" variant="outlined" sx={{ '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.5)' }, input: { color: '#fff' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }} />}
-              slotProps={{ paper: { sx: { bgcolor: '#222', color: '#fff' } } }}
-            />
-
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Gols"
-                type="number"
-                value={goals}
-                onChange={e => setGoals(parseInt(e.target.value) || 0)}
-                sx={{ '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.5)' }, input: { color: '#fff' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }}
-              />
-              <TextField
-                label="Assistências"
-                type="number"
-                value={assists}
-                onChange={e => setAssists(parseInt(e.target.value) || 0)}
-                sx={{ '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.5)' }, input: { color: '#fff' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }}
-              />
-            </Box>
-
-            <Button
-              variant="contained"
-              disabled={loading || !selectedPlayer || (goals === 0 && assists === 0)}
-              onClick={handleSave}
-              sx={{ bgcolor: '#C9940A', color: '#000', fontWeight: 700, '&:hover': { bgcolor: '#E6AC10' } }}
-            >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Salvar'}
-            </Button>
-          </Stack>
-        </DialogContent>
-      </Dialog>
     </Box>
   )
 }

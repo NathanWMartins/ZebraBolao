@@ -8,7 +8,7 @@ import {
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import Link from 'next/link'
-import { updateMatch, incrementStat, decrementStat, addPlayerStat, processMatchAndCalculate, recalculateAllScores, recalculateKnockoutScores, recalculateGlobalRanking, addTeamCard, decrementTeamCard, setSyncPaused, runSync, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry, getMatchHits, notifyMatchHits, MatchHit } from '../admin-actions'
+import { updateMatch, incrementStat, decrementStat, addPlayerStat, processMatchAndCalculate, recalculateAllScores, recalculateKnockoutScores, recalculateGlobalRanking, recalculatePoolStatuses, addTeamCard, decrementTeamCard, setSyncPaused, runSync, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry, getMatchHits, notifyMatchHits, MatchHit } from '../admin-actions'
 import { translateTeam } from '@/lib/teamTranslations'
 import { getFlagUrl } from '@/lib/teamFlags'
 import TeamFlag from '@/app/components/TeamFlag'
@@ -86,6 +86,8 @@ export default function AdminClient({
     const [recalcKnockoutResult, setRecalcKnockoutResult] = useState<{ ok: boolean; msg: string } | null>(null)
     const [recalcGlobal, setRecalcGlobal] = useState(false)
     const [recalcGlobalResult, setRecalcGlobalResult] = useState<{ ok: boolean; msg: string } | null>(null)
+    const [recalcPools, setRecalcPools] = useState(false)
+    const [recalcPoolsResult, setRecalcPoolsResult] = useState<{ ok: boolean; msg: string } | null>(null)
 
     // Modal de notificações por jogo
     const [notifModalMatchId, setNotifModalMatchId] = useState<string | null>(null)
@@ -132,6 +134,19 @@ export default function AdminClient({
             setRecalcKnockoutResult({ ok: false, msg: e.message })
         } finally {
             setRecalcKnockout(false)
+        }
+    }
+
+    const handleRecalculatePoolStatuses = async () => {
+        setRecalcPools(true)
+        setRecalcPoolsResult(null)
+        try {
+            const res = await recalculatePoolStatuses()
+            setRecalcPoolsResult({ ok: true, msg: res.updated === 0 ? 'Todos os bolões já estão atualizados' : `${res.updated} bolão(ões) atualizado(s)` })
+        } catch (e: any) {
+            setRecalcPoolsResult({ ok: false, msg: e.message })
+        } finally {
+            setRecalcPools(false)
         }
     }
 
@@ -468,6 +483,35 @@ const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => a
                     }}
                 >
                     {recalcKnockout ? 'Calculando...' : '🏆 Recalcular Mata-Mata'}
+                </Button>
+            </Box>
+
+            {/* Recalcular Status dos Bolões */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', mb: 2 }}>
+                <Box>
+                    <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>Recalcular Status dos Bolões</Typography>
+                    <Typography sx={{ color: recalcPoolsResult ? (recalcPoolsResult.ok ? '#4caf50' : '#ff6b6b') : 'rgba(255,255,255,0.4)', fontSize: 11 }}>
+                        {recalcPoolsResult ? recalcPoolsResult.msg : 'Move bolões finalizados para histórico'}
+                    </Typography>
+                </Box>
+                <Button
+                    onClick={handleRecalculatePoolStatuses}
+                    disabled={recalcPools}
+                    size="small"
+                    variant="outlined"
+                    startIcon={recalcPools ? <CircularProgress size={12} color="inherit" /> : undefined}
+                    sx={{
+                        color: '#60a5fa',
+                        borderColor: 'rgba(96,165,250,0.4)',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        textTransform: 'none',
+                        px: 2,
+                        '&:hover': { borderColor: '#60a5fa', bgcolor: 'rgba(96,165,250,0.08)' },
+                        '&.Mui-disabled': { color: 'rgba(96,165,250,0.3)', borderColor: 'rgba(96,165,250,0.2)' },
+                    }}
+                >
+                    {recalcPools ? 'Calculando...' : '📋 Recalcular Bolões'}
                 </Button>
             </Box>
 

@@ -701,3 +701,73 @@ export async function reorderGroupStandings(
   revalidatePath('/dashboard/standings')
   revalidatePath('/dashboard/admin')
 }
+
+export async function recalculatePoolStatuses(): Promise<{ updated: number }> {
+  await checkAdmin() // verifica permissão
+
+  // Usa admin client para bypassar RLS (pools pertencem a usuários diferentes)
+  const admin = createAdminClient()
+
+  const LIVE_STATUSES = ['live', 'in_play', 'playing', 'extra_time', 'penalties']
+  const PAUSE_STATUSES = ['halftime', 'delayed']
+
+  const { data: matches } = await admin
+    .from('matches')
+    .select('id, match_date, status')
+
+  const { data: pools } = await admin
+    .from('pools')
+    .select('id, match_ids, status, type')
+
+  if (!pools || !matches) return { updated: 0 }
+
+  const matchMap = new Map(matches.map((m: any) => [m.id, m]))
+  const nowMs = Date.now()
+  let updated = 0
+
+  for (const pool of pools) {
+    // Bolões especiais (campeão, vice, etc.) só terminam no final da copa — pular
+    if (pool.type === 'special') continue
+
+    const poolMatches = (pool.match_ids || []).map((id: string) => matchMap.get(id)).filter(Boolean)
+
+    // Pool sem jogos encontrados no banco → marcar como completed
+    if (poolMatches.length === 0) {
+      if (pool.status !== 'completed') {
+        await admin.from('pools').update({ status: 'completed' }).eq('id', pool.id)
+        updated++
+      }
+      continue
+    }
+
+    const starts = poolMatches.map((m: any) => new Date(m.match_date).getTime())
+    const firstStart = Math.min(...starts)
+    const lastStart = Math.max(...starts)
+    const threeHoursAfterLast = lastStart + 3 * 60 * 60 * 1000
+
+    // Jogos presos em "live" no banco mas com kickoff há +3h → tratar como completed
+    const allCompleted = poolMatches.every((m: any) => {
+      if (m.status === 'completed') return true
+      const isLiveOrPaused = [...LIVE_STATUSES, ...PAUSE_STATUSES].includes(m.status)
+      const kickoff = new Date(m.match_date).getTime()
+      return isLiveOrPaused && nowMs >= kickoff + 3 * 60 * 60 * 1000
+    })
+    const anyLive = poolMatches.some((m: any) =>
+      [...LIVE_STATUSES, ...PAUSE_STATUSES].includes(m.status)
+    )
+
+    let newStatus = 'scheduled'
+    if (allCompleted && nowMs >= threeHoursAfterLast) newStatus = 'completed'
+    else if (nowMs >= firstStart || anyLive) newStatus = 'live'
+
+    if (newStatus !== pool.status) {
+      await admin.from('pools').update({ status: newStatus }).eq('id', pool.id)
+      updated++
+    }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/my-groups')
+  revalidatePath('/dashboard/groups', 'layout')
+  return { updated }
+}

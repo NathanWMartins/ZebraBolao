@@ -75,6 +75,45 @@ export async function GET(request: Request) {
       .from('matches')
       .select('id, external_id, match_date, status')
 
+    // Atualiza status dos pools SEMPRE — independente de haver jogo ao vivo
+    // Isso garante que bolões com todos os jogos finalizados passem para histórico
+    const { data: pools } = await supabaseAdmin
+      .from('pools')
+      .select('id, match_ids, status, type')
+
+    let poolsUpdated = 0
+    if (pools) {
+      const matchMap = new Map((allDbMatches ?? []).map((m: any) => [m.id, m]))
+
+      for (const pool of pools) {
+        // Bolões especiais (campeão, vice, etc.) só terminam no final da copa — pular
+        if (pool.type === 'special') continue
+
+        const poolMatches = (pool.match_ids || []).map((id: string) => matchMap.get(id)).filter(Boolean)
+        if (poolMatches.length === 0) continue
+
+        const nowMs = now.getTime()
+        const starts = poolMatches.map((m: any) => new Date(m.match_date).getTime())
+        const firstStart = Math.min(...starts)
+        const lastStart = Math.max(...starts)
+        const threeHoursAfterLast = lastStart + 3 * 60 * 60 * 1000
+
+        const allCompleted = poolMatches.every((m: any) => m.status === 'completed')
+        const anyLive = poolMatches.some((m: any) =>
+          [...LIVE_STATUSES, ...PAUSE_STATUSES].includes(m.status)
+        )
+
+        let newStatus = 'scheduled'
+        if (allCompleted && nowMs >= threeHoursAfterLast) newStatus = 'completed'
+        else if (nowMs >= firstStart || anyLive) newStatus = 'live'
+
+        if (newStatus !== pool.status) {
+          await supabaseAdmin.from('pools').update({ status: newStatus }).eq('id', pool.id)
+          poolsUpdated++
+        }
+      }
+    }
+
     if (!forceSync) {
       const windowMinutes = Number(process.env.MATCH_WINDOW_MINUTES ?? 120)
       const windowMs = windowMinutes * 60 * 1000
@@ -90,6 +129,7 @@ export async function GET(request: Request) {
         return NextResponse.json({
           skipped: true,
           reason: 'Nenhum jogo ativo no momento.',
+          poolsUpdated,
           checkedAt: now.toISOString(),
         })
       }
@@ -99,6 +139,7 @@ export async function GET(request: Request) {
         return NextResponse.json({
           skipped: true,
           reason: `Todos os jogos pausados (${matchesInWindow.map((m: any) => m.status).join(', ')}).`,
+          poolsUpdated,
           checkedAt: now.toISOString(),
         })
       }
@@ -124,44 +165,6 @@ export async function GET(request: Request) {
     const totalSynced = matchesToSync.length > 0
       ? await upsertMatches(supabaseAdmin, matchesToSync)
       : 0
-
-    // Atualiza status dos pools
-    const { data: pools } = await supabaseAdmin
-      .from('pools')
-      .select('id, match_ids, status')
-
-    let poolsUpdated = 0
-    if (pools) {
-      const { data: refreshedMatches } = await supabaseAdmin
-        .from('matches')
-        .select('id, status, match_date')
-      const matchMap = new Map(refreshedMatches?.map((m: any) => [m.id, m]) || [])
-
-      for (const pool of pools) {
-        const poolMatches = (pool.match_ids || []).map((id: string) => matchMap.get(id)).filter(Boolean)
-        if (poolMatches.length === 0) continue
-
-        const nowMs = Date.now()
-        const starts = poolMatches.map((m: any) => new Date(m.match_date).getTime())
-        const firstStart = Math.min(...starts)
-        const lastStart = Math.max(...starts)
-        const threeHoursAfterLast = lastStart + 3 * 60 * 60 * 1000
-
-        const allCompleted = poolMatches.every((m: any) => m.status === 'completed')
-        const anyLive = poolMatches.some((m: any) =>
-          [...LIVE_STATUSES, ...PAUSE_STATUSES].includes(m.status)
-        )
-
-        let newStatus = 'scheduled'
-        if (nowMs >= threeHoursAfterLast && allCompleted) newStatus = 'completed'
-        else if (nowMs >= firstStart || anyLive) newStatus = 'live'
-
-        if (newStatus !== pool.status) {
-          await supabaseAdmin.from('pools').update({ status: newStatus }).eq('id', pool.id)
-          poolsUpdated++
-        }
-      }
-    }
 
     return NextResponse.json({
       success: true,
