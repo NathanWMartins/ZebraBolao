@@ -4,7 +4,7 @@
  * Stats (gols, cartões) e pontos são processados exclusivamente pelo botão no admin.
  */
 import { NextResponse } from 'next/server'
-import { getMatchesAPI, getKnockoutMatchesAPI, checkAndReserveApiCalls, KNOCKOUT_ROUNDS } from '@/lib/wc2026'
+import { getMatchesAPI, checkAndReserveApiCalls } from '@/lib/wc2026'
 import { createAdminClient } from '@/lib/supabase-admin'
 import type { WC2026MatchAPI } from '@/lib/wc2026'
 
@@ -70,15 +70,15 @@ export async function GET(request: Request) {
 
     const now = new Date()
 
+    // Busca estado atual do banco (usada tanto para window check quanto para filtro de live)
+    const { data: allDbMatches } = await supabaseAdmin
+      .from('matches')
+      .select('id, external_id, match_date, status')
+
     if (!forceSync) {
       const windowMinutes = Number(process.env.MATCH_WINDOW_MINUTES ?? 120)
       const windowMs = windowMinutes * 60 * 1000
 
-      const { data: allDbMatches } = await supabaseAdmin
-        .from('matches')
-        .select('id, match_date, status')
-
-      // Só roda se houver jogos na janela ativa ou ao vivo
       const matchesInWindow = (allDbMatches ?? []).filter((m: any) => {
         const start = new Date(m.match_date).getTime()
         const end = start + windowMs
@@ -104,50 +104,26 @@ export async function GET(request: Request) {
       }
     }
 
-    // Verifica se fase de grupos já está completa no banco (evita chamada desnecessária à API)
-    const { data: dbGroupMatches } = await supabaseAdmin
-      .from('matches')
-      .select('status')
-      .eq('round', 'group')
+    // External IDs dos jogos que estão live no banco (para capturar transição live → completed)
+    const dbLiveExternalIds = new Set(
+      (allDbMatches ?? [])
+        .filter((m: any) => [...LIVE_STATUSES, ...PAUSE_STATUSES].includes(m.status))
+        .map((m: any) => String(m.external_id))
+    )
 
-    const allGroupCompletedInDb = (dbGroupMatches ?? []).length > 0 &&
-      (dbGroupMatches ?? []).every((m: any) => m.status === 'completed')
+    // 1 call por execução: busca todos os jogos
+    await checkAndReserveApiCalls(1)
+    const allApiMatches = await getMatchesAPI()
 
-    let groupCount = 0
-    let knockoutCount = 0
-    let allGroupCompleted = allGroupCompletedInDb
+    // Upsert apenas: jogos live na API + jogos que estavam live no banco (pega transições)
+    const matchesToSync = allApiMatches.filter(m =>
+      [...LIVE_STATUSES, ...PAUSE_STATUSES].includes(m.status) ||
+      dbLiveExternalIds.has(String(m.id))
+    )
 
-    if (!allGroupCompletedInDb) {
-      // Fase de grupos ainda em andamento: busca grupos
-      await checkAndReserveApiCalls(1)
-      const groupApiMatches = await getMatchesAPI('group')
-      groupCount = await upsertMatches(supabaseAdmin, groupApiMatches)
-      allGroupCompleted = groupApiMatches.every((m) => m.status === 'completed')
-    }
-
-    // Busca knockout se fase de grupos finalizada
-    if (forceSync || allGroupCompleted) {
-      // Descobre quais rounds têm jogos não-completed no banco (ativos ou futuros)
-      const { data: dbKnockoutMatches } = await supabaseAdmin
-        .from('matches')
-        .select('round, status')
-        .in('round', KNOCKOUT_ROUNDS)
-
-      // Rounds com jogos ativos ou futuros (não todos completed)
-      const activeRounds = forceSync
-        ? KNOCKOUT_ROUNDS
-        : KNOCKOUT_ROUNDS.filter(round => {
-            const roundMatches = (dbKnockoutMatches ?? []).filter((m: any) => m.round === round)
-            // Inclui rounds sem jogos ainda (futuros) ou com algum jogo não-completed
-            return roundMatches.length === 0 || roundMatches.some((m: any) => m.status !== 'completed')
-          })
-
-      if (activeRounds.length > 0) {
-        await checkAndReserveApiCalls(activeRounds.length)
-        const knockoutApiMatches = await getKnockoutMatchesAPI(activeRounds)
-        knockoutCount = await upsertMatches(supabaseAdmin, knockoutApiMatches)
-      }
-    }
+    const totalSynced = matchesToSync.length > 0
+      ? await upsertMatches(supabaseAdmin, matchesToSync)
+      : 0
 
     // Atualiza status dos pools
     const { data: pools } = await supabaseAdmin
@@ -190,9 +166,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       syncedAt: now.toISOString(),
-      groupMatchesSynced: groupCount,
-      knockoutMatchesSynced: knockoutCount,
-      groupStageCompleted: allGroupCompleted,
+      matchesSynced: totalSynced,
       poolsUpdated,
     })
   } catch (err: any) {
