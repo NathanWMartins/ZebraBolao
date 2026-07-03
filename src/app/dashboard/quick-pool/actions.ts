@@ -78,8 +78,8 @@ export async function createQuickPool(data: {
         participant_id: p.id,
         match_id: matchId,
         predicted_winner: winner,
-        home_score_pred: null,
-        away_score_pred: null,
+        home_score_pred: null as unknown as number,
+        away_score_pred: null as unknown as number,
       }))
     }
   })
