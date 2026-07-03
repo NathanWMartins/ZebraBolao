@@ -9,12 +9,13 @@ import GroupAddIcon from '@mui/icons-material/GroupAdd'
 import LinkIcon from '@mui/icons-material/Link'
 import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import LeaderboardIcon from '@mui/icons-material/Leaderboard'
+import BoltIcon from '@mui/icons-material/Bolt'
 import TeamFlag from '../components/TeamFlag'
 import { translateTeam } from '@/lib/teamTranslations'
 import KnockoutBanner from './KnockoutBanner'
+import ActionCard from './ActionCard'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
@@ -106,7 +107,7 @@ export default async function DashboardPage() {
       {/* Cards grid */}
       <Box sx={{
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: 'repeat(5, 1fr)' },
+        gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(3, 1fr)' },
         gap: 2,
         mb: 4,
       }}>
@@ -146,6 +147,13 @@ export default async function DashboardPage() {
           description="Acompanhe a tabela de cada grupo da fase de grupos."
           cta="Ver tabela"
           href="/dashboard/standings"
+        />
+        <ActionCard
+          icon={<BoltIcon />}
+          title="Bolão Rápido"
+          description="Registre os palpites de todos sem grupos ou convites."
+          cta="Criar agora"
+          href="/dashboard/quick-pool"
         />
       </Box>
 
@@ -203,113 +211,6 @@ export default async function DashboardPage() {
       </Box>
     </Box>
   )
-}
-
-function ActionCard({
-  icon,
-  title,
-  description,
-  cta,
-  highlight = false,
-  gold = false,
-  href,
-}: {
-  icon: React.ReactNode
-  title: string
-  description: string
-  cta: string
-  highlight?: boolean
-  gold?: boolean
-  href?: string
-}) {
-  const accentColor = gold ? '#E8C44A' : highlight ? '#C9940A' : 'rgba(255,255,255,0.5)'
-
-  const content = (
-    <Box sx={{
-      borderRadius: '12px',
-      p: { xs: 1.5, sm: 3 },
-      display: 'flex',
-      flexDirection: { xs: 'row', sm: 'column' },
-      alignItems: { xs: 'center', sm: 'flex-start' },
-      gap: { xs: 1.5, sm: 1.5 },
-      cursor: 'pointer',
-      transition: 'all 0.2s',
-      height: '100%',
-      position: 'relative',
-      overflow: 'hidden',
-      ...(gold ? {
-        background: 'linear-gradient(135deg, rgba(232,196,74,0.1) 0%, rgba(0,0,0,0.55) 65%)',
-        border: '1px solid rgba(232,196,74,0.4)',
-        '&:hover': {
-          background: 'linear-gradient(135deg, rgba(232,196,74,0.16) 0%, rgba(0,0,0,0.55) 65%)',
-          borderColor: 'rgba(232,196,74,0.7)',
-        },
-      } : highlight ? {
-        bgcolor: 'rgba(201,148,10,0.07)',
-        border: '0.5px solid rgba(201,148,10,0.25)',
-        '&:hover': { bgcolor: 'rgba(201,148,10,0.11)', borderColor: 'rgba(201,148,10,0.4)' },
-      } : {
-        bgcolor: 'rgba(0,0,0,0.5)',
-        border: '0.5px solid rgba(255,255,255,0.08)',
-        '&:hover': { bgcolor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.15)' },
-      }),
-    }}>
-      <Box sx={{
-        width: { xs: 36, sm: 40 },
-        height: { xs: 36, sm: 40 },
-        flexShrink: 0,
-        borderRadius: '10px',
-        bgcolor: gold ? 'rgba(232,196,74,0.15)' : highlight ? 'rgba(201,148,10,0.15)' : 'rgba(255,255,255,0.06)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: accentColor,
-        '& svg': { fontSize: { xs: 18, sm: 22 } },
-      }}>
-        {icon}
-      </Box>
-
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography sx={{
-            color: gold ? '#E8C44A' : '#fff',
-            fontWeight: gold ? 700 : 500,
-            fontSize: { xs: 13, sm: 15 },
-            mb: { xs: 0, sm: 0.75 },
-          }}>
-            {title}
-          </Typography>
-          <Box sx={{ display: { xs: 'flex', sm: 'none' }, alignItems: 'center', gap: 0.25, flexShrink: 0 }}>
-            <Typography sx={{ fontSize: 12, color: accentColor, fontWeight: 500 }}>{cta}</Typography>
-            <ArrowForwardIcon sx={{ fontSize: 12, color: accentColor }} />
-          </Box>
-        </Box>
-        <Typography sx={{
-          color: gold ? 'rgba(232,196,74,0.5)' : 'rgba(255,255,255,0.4)',
-          fontSize: { xs: 11, sm: 13 },
-          lineHeight: 1.4,
-          display: { xs: 'none', sm: 'block' },
-        }}>
-          {description}
-        </Typography>
-      </Box>
-
-      <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-        <Typography sx={{ fontSize: 13, color: accentColor, fontWeight: 500 }}>{cta}</Typography>
-        <ArrowForwardIcon sx={{ fontSize: 14, color: accentColor }} />
-      </Box>
-    </Box>
-  )
-
-  if (href) {
-    return (
-      <Link href={href} style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
-        {content}
-      </Link>
-    )
-  }
-
-  return content
 }
 
 function MatchCard({ match }: { match: any }) {
