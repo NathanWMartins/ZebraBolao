@@ -6,7 +6,7 @@ import Typography from '@mui/material/Typography'
 
 function TrophyBanner() {
   return (
-    <svg width="90" height="120" viewBox="0 0 200 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="75" height="120" viewBox="440 380 120 192" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         {/* Gradiente principal da esfera */}
         <radialGradient id="kb-sphere" cx="38%" cy="32%" r="60%">
@@ -43,58 +43,46 @@ function TrophyBanner() {
         </radialGradient>
       </defs>
 
-      {/* === ESFERA === */}
-      <circle cx="100" cy="85" r="72" fill="url(#kb-sphere)" />
-      {/* Sombra na esfera */}
-      <circle cx="100" cy="85" r="72" fill="url(#kb-shadow)" />
-      {/* Highlight esfera */}
-      <circle cx="100" cy="85" r="72" fill="url(#kb-highlight)" />
+      {/* === CORPO: braços, cintura e pé (mesma silhueta do bracket) === */}
+      <path
+        d="M462 434
+           C468 452 482 464 500 470
+           C518 464 532 452 538 434
+           C542 452 528 476 521 498
+           C518 510 517 526 532 548
+           L468 548
+           C483 526 482 510 479 498
+           C472 476 458 452 462 434
+           Z"
+        fill="url(#kb-body)"
+      />
+      {/* highlight lateral do corpo */}
+      <path d="M484 486 C481 505 481 524 488 545" stroke="rgba(255,240,150,0.35)" strokeWidth="3" strokeLinecap="round" fill="none" />
 
-      {/* Globo terrestre linhas */}
-      <g transform="translate(100,85)">
-        <path d="M-60,0 Q0,-20 60,0" stroke="rgba(100,70,0,0.3)" strokeWidth="1.5" fill="none"/>
-        <path d="M-60,20 Q0,0 60,20" stroke="rgba(100,70,0,0.3)" strokeWidth="1.5" fill="none"/>
-        <path d="M0,-72 Q20,0 0,72" stroke="rgba(100,70,0,0.25)" strokeWidth="1.5" fill="none"/>
-        <path d="M-30,-65 Q-10,0 -30,65" stroke="rgba(100,70,0,0.2)" strokeWidth="1" fill="none"/>
-        <path d="M30,-65 Q10,0 30,65" stroke="rgba(100,70,0,0.2)" strokeWidth="1" fill="none"/>
+      {/* === GLOBO === */}
+      <circle cx="500" cy="428" r="45" fill="url(#kb-sphere)" />
+      <circle cx="500" cy="428" r="45" fill="url(#kb-shadow)" />
+      <circle cx="500" cy="428" r="45" fill="url(#kb-highlight)" />
+      {/* meridianos */}
+      <g stroke="rgba(100,70,0,0.3)" strokeWidth="1.5" fill="none">
+        <path d="M457 415 Q500 401 543 415" />
+        <path d="M456 441 Q500 456 544 441" />
+        <path d="M500 383 Q483 428 500 473" />
+        <path d="M500 383 Q517 428 500 473" strokeOpacity="0.6" />
       </g>
 
-      {/* === PESCOÇO / CONE === */}
-      <path d="M72,155 C76,168 80,178 82,192 L118,192 C120,178 124,168 128,155 Z" fill="url(#kb-body)" />
-      {/* highlight no cone */}
-      <path d="M88,157 C90,170 92,180 93,192" stroke="rgba(255,240,150,0.4)" strokeWidth="3" strokeLinecap="round" fill="none"/>
-
-      {/* === CORPO ALARGADO === */}
-      <path d="M82,192 C78,205 72,225 70,248 C68,265 67,278 68,292 L132,292 C133,278 132,265 130,248 C128,225 122,205 118,192 Z" fill="url(#kb-body)" />
-      {/* costelas / relevos no corpo */}
-      <path d="M86,210 C92,208 108,208 114,210" stroke="rgba(255,240,150,0.3)" strokeWidth="2" fill="none"/>
-      <path d="M84,228 C90,225 110,225 116,228" stroke="rgba(255,240,150,0.25)" strokeWidth="2" fill="none"/>
-      <path d="M83,248 C90,244 110,244 117,248" stroke="rgba(255,240,150,0.2)" strokeWidth="2" fill="none"/>
-      <path d="M83,268 C90,265 110,265 117,268" stroke="rgba(255,240,150,0.15)" strokeWidth="2" fill="none"/>
-      {/* highlight lateral corpo */}
-      <path d="M88,195 C86,215 84,240 85,290" stroke="rgba(255,240,150,0.35)" strokeWidth="3.5" strokeLinecap="round" fill="none"/>
-
       {/* === ANEL DOURADO === */}
-      <rect x="65" y="292" width="70" height="11" rx="5.5" fill="url(#kb-base)" />
-      <rect x="67" y="292" width="66" height="5" rx="4" fill="rgba(255,240,150,0.3)" />
+      <rect x="467" y="546" width="66" height="8" rx="3" fill="url(#kb-base)" />
+      <rect x="469" y="546" width="62" height="4" rx="2" fill="rgba(255,240,150,0.3)" />
 
-      {/* === FAIXAS VERDES === */}
-      <rect x="62" y="303" width="76" height="13" rx="4" fill="#1a7a1a" />
-      <rect x="62" y="303" width="76" height="5" rx="3" fill="rgba(100,220,100,0.25)" />
-      {/* texto FIFA simplificado */}
-      <text x="100" y="313" textAnchor="middle" fontSize="6" fill="rgba(255,255,200,0.7)" fontFamily="serif" letterSpacing="1">FIFA</text>
+      {/* === FAIXA VERDE === */}
+      <rect x="462" y="554" width="76" height="14" rx="4" fill="#0E6B45" />
+      <rect x="462" y="554" width="76" height="5" rx="3" fill="rgba(100,220,100,0.25)" />
+      <text x="500" y="564" textAnchor="middle" fontSize="7" fill="rgba(255,255,200,0.7)" fontFamily="serif" letterSpacing="1">FIFA</text>
 
-      {/* === BASE LARGA === */}
-      <rect x="55" y="316" width="90" height="13" rx="5" fill="url(#kb-base)" />
-      <rect x="57" y="316" width="86" height="6" rx="4" fill="rgba(255,240,150,0.28)" />
-
-      {/* === FAIXA VERDE BASE === */}
-      <rect x="50" y="329" width="100" height="12" rx="4" fill="#1a7a1a" />
-      <rect x="50" y="329" width="100" height="5" rx="3" fill="rgba(100,220,100,0.2)" />
-
-      {/* === PEDESTAL === */}
-      <rect x="45" y="341" width="110" height="16" rx="7" fill="url(#kb-base)" />
-      <rect x="47" y="341" width="106" height="7" rx="5" fill="rgba(255,240,150,0.25)" />
+      {/* === ARO INFERIOR (cortado pelo viewBox, mantendo o recorte) === */}
+      <rect x="458" y="568" width="84" height="9" rx="3.5" fill="url(#kb-base)" />
+      <rect x="460" y="568" width="80" height="4" rx="2" fill="rgba(255,240,150,0.28)" />
     </svg>
   )
 }

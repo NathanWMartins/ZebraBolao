@@ -156,11 +156,14 @@ export async function GET(request: Request) {
     await checkAndReserveApiCalls(1)
     const allApiMatches = await getMatchesAPI()
 
-    // Upsert apenas: jogos live na API + jogos que estavam live no banco (pega transições)
-    const matchesToSync = allApiMatches.filter(m =>
-      [...LIVE_STATUSES, ...PAUSE_STATUSES].includes(m.status) ||
-      dbLiveExternalIds.has(String(m.id))
-    )
+    // Force: upsert TODOS os jogos (atualiza times do mata-mata, etc.)
+    // Normal: apenas jogos live na API + jogos que estavam live no banco (transições)
+    const matchesToSync = forceSync
+      ? allApiMatches
+      : allApiMatches.filter(m =>
+          [...LIVE_STATUSES, ...PAUSE_STATUSES].includes(m.status) ||
+          dbLiveExternalIds.has(String(m.id))
+        )
 
     const totalSynced = matchesToSync.length > 0
       ? await upsertMatches(supabaseAdmin, matchesToSync)
