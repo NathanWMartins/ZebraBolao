@@ -888,7 +888,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
                           fontSize: 18,
                           letterSpacing: '1px'
                         }}>
-                          {match.home_score !== null ? `${match.home_score} x ${match.away_score}` : 'X'}
+                          {match.home_score != null && match.away_score != null ? `${match.home_score} x ${match.away_score}` : 'X'}
                         </Typography>
                         {match.home_pen_score != null && match.away_pen_score != null && (
                           <Box sx={{ mt: 0.75, px: 1.5, py: 0.4, bgcolor: 'rgba(255,204,68,0.1)', border: '1px solid rgba(255,204,68,0.3)', borderRadius: '6px' }}>

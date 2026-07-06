@@ -185,41 +185,190 @@ function fmtDate(d: string): string {
 }
 
 /**
+ * Ordem fixa do R32 (16avos) — home_team de cada jogo na posição correta da chave.
+ * Slots 0-7 = Lado A, Slots 8-15 = Lado B.
+ */
+const R32_BRACKET_ORDER: string[] = [
+  // Lado A
+  'South Africa',   // 0: Africa do Sul x Canada
+  'Netherlands',    // 1: Holanda x Marrocos
+  'Germany',        // 2: Alemanha x Paraguai
+  'France',         // 3: França x Suécia
+  'Belgium',        // 4: Bélgica x Senegal
+  'USA',            // 5: EUA x Bósnia (nome no banco é "USA")
+  'Spain',          // 6: Espanha x Áustria
+  'Portugal',       // 7: Portugal x Croácia
+  // Lado B
+  'Brazil',         // 8: Brasil x Japão
+  "Côte d'Ivoire",  // 9: Costa do Marfim x Noruega (nome no banco é "Côte d'Ivoire")
+  'Mexico',         // 10: México x Equador
+  'England',        // 11: Inglaterra x Congo
+  'Switzerland',    // 12: Suíça x Argélia
+  'Colombia',       // 13: Colômbia x Gana
+  'Australia',      // 14: Austrália x Egito
+  'Argentina',      // 15: Argentina x Cabo Verde
+]
+
+/**
  * Ordena cada rodada em slots de chave: os filhos 2s e 2s+1 alimentam o slot s
- * da rodada seguinte. Vincula pelo time que avançou quando disponível;
- * caso contrário preenche na ordem cronológica.
+ * da rodada seguinte.
+ * O R32 usa ordem fixa (hardcoded). As rodadas seguintes vinculam pelo time
+ * que avançou; caso contrário preenchem na ordem cronológica.
  */
 function buildOrderedRounds(byRound: Record<string, KnockoutMatch[]>, seq: string[]): Record<string, Slot[]> {
   const ordered: Record<string, Slot[]> = {}
-  const last = seq[seq.length - 1]
-  ordered[last] = [byRound[last]?.[0] ?? null]
 
-  for (let j = seq.length - 2; j >= 0; j--) {
+  // ── R32: ordem fixa pelo home_team ──
+  if (seq[0] === 'r32' && byRound['r32']?.length) {
+    const pool = [...byRound['r32']]
+    const slots: Slot[] = new Array(R32_BRACKET_ORDER.length).fill(null)
+
+    for (let i = 0; i < R32_BRACKET_ORDER.length; i++) {
+      const homeTeam = R32_BRACKET_ORDER[i]
+      const idx = pool.findIndex(m =>
+        m.home_team === homeTeam ||
+        m.home_team_code === homeTeam ||
+        m.away_team === homeTeam ||
+        m.away_team_code === homeTeam
+      )
+      if (idx >= 0) {
+        slots[i] = pool[idx]
+        pool.splice(idx, 1)
+      }
+    }
+    // Preenche slots restantes com jogos não mapeados
+    for (let i = 0; i < slots.length && pool.length > 0; i++) {
+      if (!slots[i]) slots[i] = pool.shift()!
+    }
+    ordered['r32'] = slots
+  }
+
+  // ── Rodadas seguintes (R16, QF, SF, Final): forward-matching por vencedor ──
+  // Se R32 não existe, usa backward-matching original como fallback
+  if (!ordered['r32']) {
+    const last = seq[seq.length - 1]
+    ordered[last] = [byRound[last]?.[0] ?? null]
+
+    for (let j = seq.length - 2; j >= 0; j--) {
+      const key = seq[j]
+      const parents = ordered[seq[j + 1]]
+      const pool = [...(byRound[key] ?? [])]
+      const slots: Slot[] = new Array(parents.length * 2).fill(null)
+
+      parents.forEach((parent, p) => {
+        if (!parent) return
+        const sides = [
+          { team: parent.home_team, code: parent.home_team_code, slot: p * 2 },
+          { team: parent.away_team, code: parent.away_team_code, slot: p * 2 + 1 },
+        ]
+        for (const side of sides) {
+          const idx = pool.findIndex(m => matchHasTeam(m, side.team, side.code))
+          if (idx >= 0) {
+            slots[side.slot] = pool[idx]
+            pool.splice(idx, 1)
+          }
+        }
+      })
+
+      for (let sIdx = 0; sIdx < slots.length && pool.length > 0; sIdx++) {
+        if (!slots[sIdx]) slots[sIdx] = pool.shift()!
+      }
+      ordered[key] = slots
+    }
+    return ordered
+  }
+
+  // Forward: a partir do R32, cada par de jogos alimenta o slot da rodada seguinte.
+  // Duas passadas: 1) vincula por vencedor, 2) preenche vazios cronologicamente.
+  // Isso evita que o fallback cronológico "roube" jogos de slots que ainda não foram processados.
+  for (let j = 1; j < seq.length; j++) {
     const key = seq[j]
-    const parents = ordered[seq[j + 1]]
-    const pool = [...(byRound[key] ?? [])]
-    const slots: Slot[] = new Array(parents.length * 2).fill(null)
+    const children = ordered[seq[j - 1]]
+    if (!children) continue
 
-    parents.forEach((parent, p) => {
-      if (!parent) return
-      const sides = [
-        { team: parent.home_team, code: parent.home_team_code, slot: p * 2 },
-        { team: parent.away_team, code: parent.away_team_code, slot: p * 2 + 1 },
-      ]
-      for (const side of sides) {
-        const idx = pool.findIndex(m => matchHasTeam(m, side.team, side.code))
+    const expectedSlots = Math.ceil(children.length / 2)
+    const pool = [...(byRound[key] ?? [])]
+    const slots: Slot[] = new Array(expectedSlots).fill(null)
+
+    // Passada 1: vincula TODOS os slots que têm vencedores primeiro
+    for (let s = 0; s < expectedSlots; s++) {
+      const child0 = children[s * 2]
+      const child1 = children[s * 2 + 1]
+      const winners: string[] = []
+      const winnerCodes: string[] = []
+
+      for (const child of [child0, child1]) {
+        if (!child) continue
+        const win = getWinnerSide(child)
+        if (win === 'home' && child.home_team) { winners.push(child.home_team); if (child.home_team_code) winnerCodes.push(child.home_team_code) }
+        if (win === 'away' && child.away_team) { winners.push(child.away_team); if (child.away_team_code) winnerCodes.push(child.away_team_code) }
+      }
+
+      for (const w of winners) {
+        const idx = pool.findIndex(m => matchHasTeam(m, w, null))
         if (idx >= 0) {
-          slots[side.slot] = pool[idx]
+          slots[s] = pool[idx]
           pool.splice(idx, 1)
+          break
         }
       }
-    })
+      if (!slots[s] && winnerCodes.length > 0) {
+        for (const wc of winnerCodes) {
+          const idx = pool.findIndex(m => matchHasTeam(m, null, wc))
+          if (idx >= 0) {
+            slots[s] = pool[idx]
+            pool.splice(idx, 1)
+            break
+          }
+        }
+      }
+    }
 
-    for (let sIdx = 0; sIdx < slots.length && pool.length > 0; sIdx++) {
-      if (!slots[sIdx]) slots[sIdx] = pool.shift()!
+    // Passada 2: também tenta vincular por times do próximo round (home/away do match da próxima rodada)
+    // que possam aparecer nos filhos mesmo sem status completed
+    for (let s = 0; s < expectedSlots; s++) {
+      if (slots[s]) continue
+      const child0 = children[s * 2]
+      const child1 = children[s * 2 + 1]
+      const teamNames: string[] = []
+      const teamCodes: string[] = []
+
+      for (const child of [child0, child1]) {
+        if (!child) continue
+        if (child.home_team) teamNames.push(child.home_team)
+        if (child.away_team) teamNames.push(child.away_team)
+        if (child.home_team_code) teamCodes.push(child.home_team_code)
+        if (child.away_team_code) teamCodes.push(child.away_team_code)
+      }
+
+      for (const t of teamNames) {
+        const idx = pool.findIndex(m => matchHasTeam(m, t, null))
+        if (idx >= 0) {
+          slots[s] = pool[idx]
+          pool.splice(idx, 1)
+          break
+        }
+      }
+      if (!slots[s]) {
+        for (const tc of teamCodes) {
+          const idx = pool.findIndex(m => matchHasTeam(m, null, tc))
+          if (idx >= 0) {
+            slots[s] = pool[idx]
+            pool.splice(idx, 1)
+            break
+          }
+        }
+      }
+    }
+
+    // Passada 3: preenche slots restantes cronologicamente
+    pool.sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())
+    for (let s = 0; s < slots.length && pool.length > 0; s++) {
+      if (!slots[s]) slots[s] = pool.shift()!
     }
     ordered[key] = slots
   }
+
   return ordered
 }
 
@@ -356,6 +505,10 @@ function KnockoutBracket({ matches, compact }: { matches: KnockoutMatch[], compa
   const pt = (r: number, a: number): [number, number] => [C + r * Math.cos(a), C + r * Math.sin(a)]
 
   const STUB = 62
+  // Animação em revezamento: cada rodada dura STEP ms e começa exatamente
+  // quando a anterior termina, encadeando o avanço desde o anel externo.
+  const STEP = 700
+  const stepDelay = (j: number) => 250 + j * STEP
   // Posição do "pai": a final vira dois pontos horizontais ao lado do troféu
   const parentPt = (j: number, slot: number, childAngle: number): [number, number] => {
     if (j === levels - 1) return [C + (Math.cos(childAngle) >= 0 ? STUB : -STUB), C]
@@ -443,8 +596,11 @@ function KnockoutBracket({ matches, compact }: { matches: KnockoutMatch[], compa
               onClick={() => toggleSelect(m!)}
               style={{
                 cursor: 'pointer',
+                // Invisível até a etapa anterior terminar: a bandeira "surge"
+                // sobre o nó onde o time acabou de chegar e segue adiante
+                opacity: entered ? 1 : 0,
                 transform: entered ? 'translate(0px, 0px)' : `translate(${ox - x}px, ${oy - y}px)`,
-                transition: `transform 900ms cubic-bezier(0.25, 0.8, 0.3, 1) ${250 + j * 650}ms`,
+                transition: `transform ${STEP}ms cubic-bezier(0.25, 0.8, 0.3, 1) ${stepDelay(j)}ms, opacity 0ms linear ${stepDelay(j)}ms`,
               }}
             >
               <title>{tooltip}</title>
@@ -556,7 +712,7 @@ function KnockoutBracket({ matches, compact }: { matches: KnockoutMatch[], compa
     championEl = (
       <g style={{
         opacity: entered ? 1 : 0,
-        transition: `opacity 700ms ease ${250 + levels * 650}ms`,
+        transition: `opacity 700ms ease ${stepDelay(levels)}ms`,
       }}>
         <text x={C} y={cy2 - r2 - 14} textAnchor="middle" fill="#C9940A" fontSize={13 * s} fontWeight={800} letterSpacing="2">
           CAMPEÃO

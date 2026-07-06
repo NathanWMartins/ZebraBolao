@@ -45,6 +45,19 @@ export async function decrementStat(id: string, field: 'goals' | 'assists') {
   }
 }
 
+/**
+ * Oculta/exibe um jogador no painel do admin (soft-hide).
+ * O registro continua existindo e pontuando — só some da tela do admin.
+ */
+export async function setPlayerAdminHidden(id: string, hidden: boolean) {
+  if (!id || typeof id !== 'string') throw new Error('ID inválido')
+
+  const supabase = await checkAdmin()
+  const { error } = await supabase.from('player_stats').update({ admin_hidden: hidden }).eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/admin')
+}
+
 export async function addPlayerStat(playerName: string, team: string, goals: number, assists: number) {
   if (!playerName || typeof playerName !== 'string' || playerName.length > 100) throw new Error('Nome do jogador inválido')
   if (!team || typeof team !== 'string' || team.length > 100) throw new Error('Seleção inválida')
