@@ -119,6 +119,7 @@ export default async function PoolPredictPage(props: { params: Promise<{ id: str
       scrollToMatchId={scrollToMatch}
       isOwner={isOwner}
       availableMatchesToAdd={availableMatchesToAdd}
+      includeKnockout={pool.include_knockout ?? false}
     />
   )
 }

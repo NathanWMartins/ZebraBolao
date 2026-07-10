@@ -212,7 +212,8 @@ export default function AdminClient({
                 setSyncResult({ ok: false, msg: (data as any).error })
             } else {
                 const d = data as any
-                setSyncResult({ ok: true, msg: `${d.groupMatchesSynced ?? 0} jogos sincronizados • ${d.matchesFinished ?? 0} processados` })
+                const knockoutNote = d.knockoutMatchesAdded > 0 ? ` • ${d.knockoutMatchesAdded} mata-mata adicionados` : ''
+                setSyncResult({ ok: true, msg: `${d.matchesSynced ?? d.groupMatchesSynced ?? 0} jogos sincronizados${knockoutNote}` })
             }
         } catch (e: any) {
             setSyncResult({ ok: false, msg: e.message })

@@ -71,6 +71,7 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
   const [poolType, setPoolType] = useState<'winner' | 'score'>('winner')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [groupAnchor, setGroupAnchor] = useState<null | HTMLElement>(null)
+  const [includeKnockout, setIncludeKnockout] = useState(false)
 
   // Estados compartilhados
   const [poolName, setPoolName] = useState('')
@@ -91,6 +92,22 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
     })
     return Array.from(groups).sort()
   }, [initialMatches])
+
+  const knockoutMatchIds = useMemo(() => {
+    return initialMatches.filter(m => m.round !== 'group').map((m: Match) => m.id)
+  }, [initialMatches])
+
+  const handleToggleKnockout = () => {
+    const newValue = !includeKnockout
+    setIncludeKnockout(newValue)
+    if (newValue) {
+      // Adiciona jogos de mata-mata já disponíveis
+      setSelectedIds(prev => [...new Set([...prev, ...knockoutMatchIds])])
+    } else {
+      // Remove jogos de mata-mata
+      setSelectedIds(prev => prev.filter(id => !knockoutMatchIds.includes(id)))
+    }
+  }
 
   const handleSelectGroup = (groupName: string) => {
     const groupMatchIds = initialMatches
@@ -141,7 +158,7 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
     if (!poolName.trim()) { setError('Dê um nome ao seu bolão.'); return }
     setLoading(true); setError(null)
     try {
-      const result = await createPool(groupId, poolName, selectedIds, poolType, [])
+      const result = await createPool(groupId, poolName, selectedIds, poolType, [], includeKnockout)
       if (result.error) setError(result.error)
       else router.push(`/dashboard/groups/${groupId}`)
     } catch { setError('Erro ao salvar o bolão. Tente novamente.') }
@@ -364,7 +381,7 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
   // ETAPA 2 — Bolão por Jogos (fluxo original)
   // ─────────────────────────────────────────────────────────────
   return (
-    <Box sx={{ pb: selectedIds.length > 0 ? 30 : 5 }}>
+    <Box sx={{ pb: (selectedIds.length > 0 || includeKnockout) ? 30 : 5 }}>
       {/* Header com seletor de datas */}
       <Box sx={{
         position: 'sticky', top: 0, zIndex: 10,
@@ -373,7 +390,7 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
         borderBottom: '1px solid rgba(255,255,255,0.05)'
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, mb: { xs: 1.5, sm: 3 } }}>
-          <IconButton size="small" onClick={() => { setStep('select'); setError(null); setPoolName(''); setSelectedIds([]) }}
+          <IconButton size="small" onClick={() => { setStep('select'); setError(null); setPoolName(''); setSelectedIds([]); setIncludeKnockout(false) }}
             sx={{ color: 'rgba(255,255,255,0.7)', bgcolor: 'rgba(255,255,255,0.05)', p: { xs: 0.75, sm: 1 } }}>
             <ArrowBackIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
           </IconButton>
@@ -432,16 +449,28 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
           <Typography sx={{ color: '#fff', fontWeight: 600, fontSize: { xs: 14, sm: 20 } }}>
             Jogos de {new Date(`${currentDate}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
           </Typography>
-          {availableGroups.length > 0 && (
-            <Button size="small" onClick={(e) => setGroupAnchor(e.currentTarget)} sx={{
-              color: '#C9940A', border: '1px solid', borderColor: 'rgba(201,148,10,0.4)',
-              borderRadius: '10px', textTransform: 'none', fontWeight: 600,
-              fontSize: { xs: 12, sm: 13 }, px: { xs: 1, sm: 1.5 }, py: { xs: 0.25, sm: 0.5 },
-              flexShrink: 0, '&:hover': { bgcolor: 'rgba(201,148,10,0.1)' }
+          <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+            <Button size="small" onClick={handleToggleKnockout} sx={{
+              color: includeKnockout ? '#000' : '#C9940A',
+              bgcolor: includeKnockout ? '#C9940A' : 'transparent',
+              border: '1px solid', borderColor: includeKnockout ? '#C9940A' : 'rgba(201,148,10,0.4)',
+              borderRadius: '10px', textTransform: 'none', fontWeight: 700,
+              fontSize: { xs: 11, sm: 13 }, px: { xs: 1, sm: 1.5 }, py: { xs: 0.25, sm: 0.5 },
+              '&:hover': { bgcolor: includeKnockout ? '#E6AC10' : 'rgba(201,148,10,0.1)' }
             }}>
-              Por Grupo
+              Adicionar Mata-Mata
             </Button>
-          )}
+            {availableGroups.length > 0 && (
+              <Button size="small" onClick={(e) => setGroupAnchor(e.currentTarget)} sx={{
+                color: '#C9940A', border: '1px solid', borderColor: 'rgba(201,148,10,0.4)',
+                borderRadius: '10px', textTransform: 'none', fontWeight: 600,
+                fontSize: { xs: 12, sm: 13 }, px: { xs: 1, sm: 1.5 }, py: { xs: 0.25, sm: 0.5 },
+                '&:hover': { bgcolor: 'rgba(201,148,10,0.1)' }
+              }}>
+                Por Grupo
+              </Button>
+            )}
+          </Box>
         </Box>
 
         <Popover
@@ -534,7 +563,7 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
       </Box>
 
       {/* Drawer Inferior */}
-      {selectedIds.length > 0 && (
+      {(selectedIds.length > 0 || includeKnockout) && (
         <Box sx={{ position: 'fixed', bottom: { xs: 0, md: 24 }, left: { xs: 0, md: 'auto' }, right: { xs: 0, md: 24 }, zIndex: 100, width: { xs: '100%', md: 400 } }}>
           <Card sx={{
             bgcolor: 'rgba(15,15,15,0.9)', backdropFilter: 'blur(20px)',
@@ -576,6 +605,14 @@ export default function CreatePoolClient({ groupId, groupName, initialMatches }:
                     <ToggleButton value="winner">Vencedor ou Empate</ToggleButton>
                   </ToggleButtonGroup>
                 </Box>
+
+                {includeKnockout && (
+                  <Box sx={{ mb: 2, px: 1.5, py: 1, borderRadius: '10px', bgcolor: 'rgba(201,148,10,0.08)', border: '1px solid rgba(201,148,10,0.2)', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography sx={{ fontSize: 11, color: '#C9940A', fontWeight: 600 }}>
+                      🔥 Jogos de mata-mata serão adicionados automaticamente via sync
+                    </Typography>
+                  </Box>
+                )}
 
                 <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, mb: 1, fontWeight: 500 }}>JOGOS SELECIONADOS</Typography>
                 <Box sx={{ maxHeight: { xs: 120, sm: 200 }, overflowY: 'auto', mb: { xs: 2, sm: 4 }, pr: 1, display: 'flex', flexDirection: 'column', gap: 1, '&::-webkit-scrollbar': { width: '4px' }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: '10px' } }}>

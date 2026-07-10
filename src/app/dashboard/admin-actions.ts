@@ -645,7 +645,64 @@ export async function runSync(): Promise<Record<string, unknown>> {
     headers: { Authorization: `Bearer ${secret}` },
     cache: 'no-store',
   })
-  return res.json()
+  const syncResult = await res.json()
+
+  // Após sync, adiciona jogos de mata-mata em pools com include_knockout
+  const knockoutResult = await syncKnockoutMatchesToPools()
+
+  return { ...syncResult, knockoutPoolsUpdated: knockoutResult.poolsUpdated, knockoutMatchesAdded: knockoutResult.matchesAdded }
+}
+
+/**
+ * Busca pools com include_knockout=true e adiciona jogos de mata-mata
+ * que já têm times definidos e ainda não estão no pool.
+ */
+async function syncKnockoutMatchesToPools(): Promise<{ poolsUpdated: number; matchesAdded: number }> {
+  const admin = createAdminClient()
+
+  const KNOCKOUT_ROUNDS = ['R32', 'R16', 'QF', 'SF', '3rd', 'final']
+
+  // Busca todos os jogos de mata-mata com times definidos
+  const { data: knockoutMatches } = await admin
+    .from('matches')
+    .select('id')
+    .in('round', KNOCKOUT_ROUNDS)
+    .not('home_team', 'is', null)
+    .not('away_team', 'is', null)
+
+  if (!knockoutMatches || knockoutMatches.length === 0) return { poolsUpdated: 0, matchesAdded: 0 }
+
+  const allKnockoutIds = knockoutMatches.map((m: any) => m.id)
+
+  // Busca pools com include_knockout ativo
+  const { data: pools } = await admin
+    .from('pools')
+    .select('id, match_ids, group_id')
+    .eq('include_knockout', true)
+
+  if (!pools || pools.length === 0) return { poolsUpdated: 0, matchesAdded: 0 }
+
+  let poolsUpdated = 0
+  let totalAdded = 0
+
+  for (const pool of pools) {
+    const existing: string[] = pool.match_ids ?? []
+    const existingSet = new Set(existing)
+    const newIds = allKnockoutIds.filter((id: string) => !existingSet.has(id))
+
+    if (newIds.length === 0) continue
+
+    const merged = [...existing, ...newIds]
+    await admin.from('pools').update({ match_ids: merged }).eq('id', pool.id)
+    poolsUpdated++
+    totalAdded += newIds.length
+  }
+
+  if (poolsUpdated > 0) {
+    revalidatePath('/dashboard')
+  }
+
+  return { poolsUpdated, matchesAdded: totalAdded }
 }
 
 export async function getSyncPaused(): Promise<boolean> {

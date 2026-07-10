@@ -26,7 +26,7 @@ import LeaderboardIcon from '@mui/icons-material/Leaderboard'
 import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
 import Link from 'next/link'
-import { savePredictions, saveSpecialPredictions, addMatchesToPool } from '../../actions'
+import { savePredictions, saveSpecialPredictions, addMatchesToPool, setPoolIncludeKnockout } from '../../actions'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import PredictionsModal from './PredictionsModal'
@@ -75,6 +75,7 @@ interface PredictClientProps {
   scrollToMatchId?: string
   isOwner?: boolean
   availableMatchesToAdd?: Match[]
+  includeKnockout?: boolean
 }
 
 const SPECIAL_BET_LABELS: Record<string, string> = {
@@ -96,7 +97,7 @@ const glowPulse = keyframes`
   100% { box-shadow: 0 0 12px rgba(99,202,132,0.2); border-color: rgba(99,202,132,0.3); }
 `
 
-export default function PredictClient({ groupId, poolId, poolName, poolType, poolStatus, specialBets, matches, initialPredictions, initialSpecialPredictions, allTeams, initialTab, scrollToMatchId, isOwner, availableMatchesToAdd }: PredictClientProps) {
+export default function PredictClient({ groupId, poolId, poolName, poolType, poolStatus, specialBets, matches, initialPredictions, initialSpecialPredictions, allTeams, initialTab, scrollToMatchId, isOwner, availableMatchesToAdd, includeKnockout: initialIncludeKnockout }: PredictClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -115,6 +116,8 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
   const [addMatchesSelected, setAddMatchesSelected] = useState<string[]>([])
   const [addMatchesLoading, setAddMatchesLoading] = useState(false)
   const [addMatchesResult, setAddMatchesResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [includeKnockout, setIncludeKnockout] = useState(initialIncludeKnockout ?? false)
+  const [knockoutLoading, setKnockoutLoading] = useState(false)
 
   const handleAddMatches = async () => {
     if (addMatchesSelected.length === 0) return
@@ -411,7 +414,7 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
               </Typography>
             </IconButton>
 
-            {isOwner && localAvailableMatches.length > 0 && (
+            {isOwner && (
               <IconButton
                 onClick={() => { setAddMatchesOpen(true); setAddMatchesResult(null) }}
                 sx={{
@@ -1297,67 +1300,135 @@ export default function PredictClient({ groupId, poolId, poolName, poolType, poo
               </IconButton>
             </Box>
 
-            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, mb: 2 }}>
-              Apenas jogos futuros com times definidos. Membros poderão palpitar nos novos jogos.
-            </Typography>
-
-            <Stack spacing={1} sx={{ mb: 2.5 }}>
-              {localAvailableMatches.map(match => {
-                const selected = addMatchesSelected.includes(match.id)
-                const date = new Date(match.match_date)
-                return (
-                  <Box
-                    key={match.id}
-                    onClick={() => setAddMatchesSelected(prev =>
-                      selected ? prev.filter(id => id !== match.id) : [...prev, match.id]
-                    )}
-                    sx={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      px: 2, py: 1.25, borderRadius: '12px', cursor: 'pointer', border: '1px solid',
-                      borderColor: selected ? 'rgba(76,175,80,0.5)' : 'rgba(255,255,255,0.07)',
-                      bgcolor: selected ? 'rgba(76,175,80,0.07)' : 'rgba(255,255,255,0.02)',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <TeamFlag teamName={match.home_team!} size={20} />
-                      <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
-                        {translateTeam(match.home_team!)} vs {translateTeam(match.away_team!)}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography sx={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>
-                        {date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })} {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}h
-                      </Typography>
-                      {selected && <CheckIcon sx={{ fontSize: 16, color: '#4caf50' }} />}
-                    </Box>
-                  </Box>
-                )
-              })}
-            </Stack>
-
-            {addMatchesResult && (
-              <Typography sx={{ fontSize: 12, mb: 2, color: addMatchesResult.ok ? '#4caf50' : '#ff6b6b' }}>
-                {addMatchesResult.ok ? '✓' : '✗'} {addMatchesResult.msg}
+            {localAvailableMatches.length > 0 && (
+              <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, mb: 2 }}>
+                Apenas jogos futuros com times definidos. Membros poderão palpitar nos novos jogos.
               </Typography>
             )}
 
-            <Button
-              fullWidth
-              variant="contained"
-              disabled={addMatchesSelected.length === 0 || addMatchesLoading}
-              onClick={handleAddMatches}
-              sx={{
-                bgcolor: '#4caf50', color: '#000', fontWeight: 800, fontSize: 14,
-                py: 1.5, borderRadius: '12px', textTransform: 'none',
-                '&:hover': { bgcolor: '#43a047' },
-                '&.Mui-disabled': { bgcolor: 'rgba(76,175,80,0.3)' },
-              }}
-            >
-              {addMatchesLoading
-                ? <CircularProgress size={18} color="inherit" />
-                : `Adicionar ${addMatchesSelected.length > 0 ? `(${addMatchesSelected.length})` : ''} Jogo(s)`}
-            </Button>
+            {/* Mata-Mata toggle */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+              <Button
+                size="small"
+                disabled={knockoutLoading}
+                onClick={async () => {
+                  const newVal = !includeKnockout
+                  setKnockoutLoading(true)
+                  try {
+                    const res = await setPoolIncludeKnockout(poolId, newVal)
+                    if (res?.error) {
+                      setAddMatchesResult({ ok: false, msg: res.error })
+                    } else {
+                      setIncludeKnockout(newVal)
+                      // Auto-select knockout matches from available list
+                      if (newVal) {
+                        const knockoutIds = localAvailableMatches
+                          .filter(m => m.round !== 'group')
+                          .map(m => m.id)
+                        setAddMatchesSelected(prev => [...new Set([...prev, ...knockoutIds])])
+                      }
+                    }
+                  } finally {
+                    setKnockoutLoading(false)
+                  }
+                }}
+                sx={{
+                  color: includeKnockout ? '#000' : '#C9940A',
+                  bgcolor: includeKnockout ? '#C9940A' : 'transparent',
+                  border: '1px solid',
+                  borderColor: '#C9940A',
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  px: 1.5,
+                  minWidth: 0,
+                  '&:hover': { bgcolor: includeKnockout ? '#b8860b' : 'rgba(201,148,10,0.1)' },
+                }}
+              >
+                {knockoutLoading ? <CircularProgress size={14} color="inherit" /> : 'Add Automático'}
+              </Button>
+              {includeKnockout && (
+                <Typography sx={{ fontSize: 11, color: '#C9940A' }}>
+                  Novos jogos adicionados automaticamente via sync
+                </Typography>
+              )}
+            </Box>
+
+            {localAvailableMatches.length > 0 ? (
+              <>
+                <Stack spacing={1} sx={{ mb: 2.5 }}>
+                  {localAvailableMatches.map(match => {
+                    const selected = addMatchesSelected.includes(match.id)
+                    const date = new Date(match.match_date)
+                    return (
+                      <Box
+                        key={match.id}
+                        onClick={() => setAddMatchesSelected(prev =>
+                          selected ? prev.filter(id => id !== match.id) : [...prev, match.id]
+                        )}
+                        sx={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          px: 2, py: 1.25, borderRadius: '12px', cursor: 'pointer', border: '1px solid',
+                          borderColor: selected ? 'rgba(76,175,80,0.5)' : 'rgba(255,255,255,0.07)',
+                          bgcolor: selected ? 'rgba(76,175,80,0.07)' : 'rgba(255,255,255,0.02)',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <TeamFlag teamName={match.home_team!} size={20} />
+                          <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
+                            {translateTeam(match.home_team!)} vs {translateTeam(match.away_team!)}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography sx={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>
+                            {date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })} {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}h
+                          </Typography>
+                          {selected && <CheckIcon sx={{ fontSize: 16, color: '#4caf50' }} />}
+                        </Box>
+                      </Box>
+                    )
+                  })}
+                </Stack>
+
+                {addMatchesResult && (
+                  <Typography sx={{ fontSize: 12, mb: 2, color: addMatchesResult.ok ? '#4caf50' : '#ff6b6b' }}>
+                    {addMatchesResult.ok ? '✓' : '✗'} {addMatchesResult.msg}
+                  </Typography>
+                )}
+
+                <Button
+                  fullWidth
+                  variant="contained"
+                  disabled={addMatchesSelected.length === 0 || addMatchesLoading}
+                  onClick={handleAddMatches}
+                  sx={{
+                    bgcolor: '#4caf50', color: '#000', fontWeight: 800, fontSize: 14,
+                    py: 1.5, borderRadius: '12px', textTransform: 'none',
+                    '&:hover': { bgcolor: '#43a047' },
+                    '&.Mui-disabled': { bgcolor: 'rgba(76,175,80,0.3)' },
+                  }}
+                >
+                  {addMatchesLoading
+                    ? <CircularProgress size={18} color="inherit" />
+                    : `Adicionar ${addMatchesSelected.length > 0 ? `(${addMatchesSelected.length})` : ''} Jogo(s)`}
+                </Button>
+              </>
+            ) : (
+              <>
+                {addMatchesResult && (
+                  <Typography sx={{ fontSize: 12, mb: 2, color: addMatchesResult.ok ? '#4caf50' : '#ff6b6b' }}>
+                    {addMatchesResult.ok ? '✓' : '✗'} {addMatchesResult.msg}
+                  </Typography>
+                )}
+                {!includeKnockout && (
+                  <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, textAlign: 'center', py: 2 }}>
+                    Nenhum jogo disponível. Ative o Mata-Mata acima para receber jogos automaticamente.
+                  </Typography>
+                )}
+              </>
+            )}
           </Box>
         </Box>
       )}

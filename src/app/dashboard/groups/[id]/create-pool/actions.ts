@@ -3,7 +3,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { revalidatePath } from 'next/cache'
 
-export async function createPool(groupId: string, name: string, matchIds: string[], type: 'winner' | 'score' | 'special' = 'winner', specialBets: string[] = []) {
+export async function createPool(groupId: string, name: string, matchIds: string[], type: 'winner' | 'score' | 'special' = 'winner', specialBets: string[] = [], includeKnockout: boolean = false) {
   if (!name || name.trim() === '') {
     return { error: 'O nome do bolão é obrigatório.' }
   }
@@ -13,7 +13,7 @@ export async function createPool(groupId: string, name: string, matchIds: string
 
   const isSpecial = type === 'special'
 
-  if (!isSpecial && (!matchIds || matchIds.length === 0)) {
+  if (!isSpecial && (!matchIds || matchIds.length === 0) && !includeKnockout) {
     return { error: 'Selecione pelo menos um jogo para o bolão.' }
   }
 
@@ -62,7 +62,8 @@ export async function createPool(groupId: string, name: string, matchIds: string
       name: name.trim(),
       match_ids: matchIds,
       type: type,
-      special_bets: specialBets
+      special_bets: specialBets,
+      include_knockout: includeKnockout
     }])
     .select()
     .single()

@@ -471,6 +471,25 @@ export async function leaveGroup(groupId: string) {
   return { success: true }
 }
 
+export async function setPoolIncludeKnockout(poolId: string, includeKnockout: boolean) {
+  const supabase = await createServerSupabaseClient()
+  const supabaseAdmin = createAdminClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Usuário não autenticado.' }
+
+  const { data: pool } = await supabaseAdmin.from('pools').select('group_id').eq('id', poolId).single()
+  if (!pool) return { error: 'Bolão não encontrado.' }
+
+  const { data: group } = await supabase.from('groups').select('owner_id').eq('id', pool.group_id).single()
+  if (!group || group.owner_id !== user.id) return { error: 'Apenas o administrador pode alterar o bolão.' }
+
+  const { error } = await supabaseAdmin.from('pools').update({ include_knockout: includeKnockout }).eq('id', poolId)
+  if (error) return { error: 'Erro ao atualizar o bolão.' }
+
+  return { success: true }
+}
+
 export async function addMatchesToPool(poolId: string, matchIds: string[]) {
   const supabase = await createServerSupabaseClient()
   const supabaseAdmin = createAdminClient()
