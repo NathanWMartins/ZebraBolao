@@ -84,6 +84,7 @@ export default async function DashboardPage() {
     .slice(0, 10)
 
   const showStats = !!(topScorers?.length || topAssists?.length || teamStats?.length)
+  const isCupOver = new Date() >= new Date('2026-07-19T16:00:00-03:00')
 
   return (
     <Box component="main" sx={{ maxWidth: 1200, mx: 'auto', px: 4, py: 6 }}>
@@ -111,6 +112,7 @@ export default async function DashboardPage() {
         gap: 2,
         mb: 4,
       }}>
+        {!isCupOver && (
         <ActionCard
           icon={<GroupAddIcon />}
           title="Criar grupo"
@@ -119,6 +121,8 @@ export default async function DashboardPage() {
           href="/dashboard/groups/create"
           highlight
         />
+        )}
+        {!isCupOver && (
         <ActionCard
           icon={<LinkIcon />}
           title="Entrar em grupo"
@@ -126,6 +130,7 @@ export default async function DashboardPage() {
           cta="Usar código"
           href="/dashboard/groups/join"
         />
+        )}
         <ActionCard
           icon={<SportsSoccerIcon />}
           title="Meus Grupos"
@@ -148,6 +153,7 @@ export default async function DashboardPage() {
           cta="Ver tabela"
           href="/dashboard/standings"
         />
+        {!isCupOver && (
         <ActionCard
           icon={<BoltIcon />}
           title="Bolão Rápido"
@@ -155,6 +161,7 @@ export default async function DashboardPage() {
           cta="Criar agora"
           href="/dashboard/quick-pool"
         />
+        )}
       </Box>
 
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4 }}>

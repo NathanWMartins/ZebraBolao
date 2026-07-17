@@ -140,24 +140,55 @@ export default function KnockoutBanner() {
 
         {/* Texto */}
         <Box sx={{ flex: 1, minWidth: 0, py: { xs: 2, md: 2.5 }, pr: { xs: 2, md: 3 } }}>
-          <Typography sx={{
-            color: '#fff',
-            fontSize: { xs: 16, md: 20 },
-            fontWeight: 700,
-            lineHeight: 1.2,
-            mb: { xs: 0.5, md: 0.75 },
-          }}>
-            O Mata-Mata começou!
-          </Typography>
-          <Typography sx={{
-            color: 'rgba(255,255,255,0.5)',
-            fontSize: { xs: 12, md: 13 },
-            lineHeight: 1.5,
-          }}>
-            Os pontos agora valem{' '}
-            <Box component="span" sx={{ color: '#ffcc44', fontWeight: 700 }}>mais a cada fase</Box>
-            {' '}— acerte os jogos e dispare no ranking.
-          </Typography>
+          {(() => {
+            const isCupOver = new Date() >= new Date('2026-07-19T20:00:00-03:00')
+            if (isCupOver) {
+              return (
+                <>
+                  <Typography sx={{
+                    color: '#fff',
+                    fontSize: { xs: 16, md: 20 },
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    mb: { xs: 0.5, md: 0.75 },
+                  }}>
+                    Fim de jogo!
+                  </Typography>
+                  <Typography sx={{
+                    color: 'rgba(255,255,255,0.5)',
+                    fontSize: { xs: 12, md: 13 },
+                    lineHeight: 1.5,
+                  }}>
+                    A Copa 2026 chegou ao fim. Veja o{' '}
+                    <Box component="span" sx={{ color: '#ffcc44', fontWeight: 700 }}>ranking final</Box>
+                    {' '}e descubra quem é o craque dos palpites!
+                  </Typography>
+                </>
+              )
+            }
+            return (
+              <>
+                <Typography sx={{
+                  color: '#fff',
+                  fontSize: { xs: 16, md: 20 },
+                  fontWeight: 700,
+                  lineHeight: 1.2,
+                  mb: { xs: 0.5, md: 0.75 },
+                }}>
+                  O Mata-Mata começou!
+                </Typography>
+                <Typography sx={{
+                  color: 'rgba(255,255,255,0.5)',
+                  fontSize: { xs: 12, md: 13 },
+                  lineHeight: 1.5,
+                }}>
+                  Os pontos agora valem{' '}
+                  <Box component="span" sx={{ color: '#ffcc44', fontWeight: 700 }}>mais a cada fase</Box>
+                  {' '}— acerte os jogos e dispare no ranking.
+                </Typography>
+              </>
+            )
+          })()}
         </Box>
       </Box>
     </Box>

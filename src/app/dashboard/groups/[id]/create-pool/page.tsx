@@ -4,6 +4,13 @@ import CreatePoolClient from './create-pool-client'
 
 export default async function CreatePoolPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params
+
+  // Deadline: Copa acaba dia 19/07/2026
+  const isCupOver = new Date() >= new Date('2026-07-19T16:00:00-03:00')
+  if (isCupOver) {
+    redirect(`/dashboard/groups/${id}`)
+  }
+
   const supabase = await createServerSupabaseClient()
 
   const { data: { user } } = await supabase.auth.getUser()

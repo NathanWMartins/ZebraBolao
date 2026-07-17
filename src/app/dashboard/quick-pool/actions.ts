@@ -42,6 +42,12 @@ export async function createQuickPool(data: {
   winnerPredictions: WinnerPredictions
   exactPredictions: ExactPredictions
 }): Promise<string> {
+  // Deadline: Copa acaba dia 19/07/2026
+  const deadline = new Date('2026-07-19T16:00:00-03:00')
+  if (new Date() >= deadline) {
+    throw new Error('A Copa já acabou! Não é mais possível criar novos bolões.')
+  }
+
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Não autenticado')

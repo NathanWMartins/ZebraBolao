@@ -49,6 +49,7 @@ export default async function GroupPage(props: {
   }
 
   const isOwner = group.owner_id === user.id
+  const isCupOver = new Date() >= new Date('2026-07-19T16:00:00-03:00')
 
   if (!memberCheck && !isOwner) {
     redirect(`/dashboard/groups/join?code=${group.invite_code}`)
@@ -138,7 +139,7 @@ export default async function GroupPage(props: {
             <Typography sx={{ color: '#fff', fontSize: 20, fontWeight: 600 }}>
               Bolões
             </Typography>
-            {isOwner && activeTab !== 'ranking' && (
+            {isOwner && !isCupOver && activeTab !== 'ranking' && (
               <Link href={`/dashboard/groups/${id}/create-pool`} passHref>
                 <Button
                   variant="contained"

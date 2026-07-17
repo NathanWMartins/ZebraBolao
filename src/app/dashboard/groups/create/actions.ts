@@ -14,6 +14,12 @@ function generateInviteCode() {
 }
 
 export async function createGroup(prevState: any, formData: FormData) {
+  // Deadline: Copa acaba dia 19/07/2026 - não permite criar grupos a partir dessa data
+  const deadline = new Date('2026-07-19T16:00:00-03:00')
+  if (new Date() >= deadline) {
+    return { error: 'A Copa já acabou! Não é mais possível criar novos grupos.' }
+  }
+
   const name = formData.get('name') as string
   const isPrivateStr = formData.get('is_private')
   const isPrivate = isPrivateStr === 'true' || isPrivateStr === 'on'

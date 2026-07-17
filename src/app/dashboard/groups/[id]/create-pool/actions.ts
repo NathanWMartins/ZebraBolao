@@ -4,6 +4,12 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { revalidatePath } from 'next/cache'
 
 export async function createPool(groupId: string, name: string, matchIds: string[], type: 'winner' | 'score' | 'special' = 'winner', specialBets: string[] = [], includeKnockout: boolean = false) {
+  // Deadline: Copa acaba dia 19/07/2026 - não permite criar bolões a partir dessa data
+  const deadline = new Date('2026-07-19T16:00:00-03:00')
+  if (new Date() >= deadline) {
+    return { error: 'A Copa já acabou! Não é mais possível criar novos bolões.' }
+  }
+
   if (!name || name.trim() === '') {
     return { error: 'O nome do bolão é obrigatório.' }
   }

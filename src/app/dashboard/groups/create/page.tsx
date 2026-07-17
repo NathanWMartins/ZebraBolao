@@ -22,6 +22,9 @@ export default function CreateGroupPage() {
   const [inviteUrl, setInviteUrl] = useState('')
   const [copied, setCopied] = useState(false)
 
+  // Deadline: Copa acaba dia 19/07/2026
+  const isCupOver = new Date() >= new Date('2026-07-19T16:00:00-03:00')
+
   useEffect(() => {
     if (state?.success && state.group) {
       setInviteUrl(`${window.location.origin}/dashboard/groups/join?code=${state.group.invite_code}`)
@@ -110,6 +113,32 @@ export default function CreateGroupPage() {
             >
               Ir para o Grupo
             </Button>
+          </Box>
+        </Box>
+      </Box>
+    )
+  }
+
+  if (isCupOver) {
+    return (
+      <Box sx={{ p: { xs: 2, md: 4 } }}>
+        <Box sx={{ maxWidth: 600, mx: 'auto', mt: { xs: 2, md: 8 } }}>
+          <Box sx={{ mb: 4 }}>
+            <BackButton />
+          </Box>
+          <Box sx={{
+            bgcolor: 'rgba(0,0,0,0.5)',
+            border: '0.5px solid rgba(255,255,255,0.08)',
+            borderRadius: '16px',
+            p: { xs: 3, md: 5 },
+            textAlign: 'center',
+          }}>
+            <Typography variant="h1" sx={{ color: '#fff', fontSize: '28px', fontWeight: 600, mb: 2 }}>
+              Copa Encerrada
+            </Typography>
+            <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 15 }}>
+              A Copa do Mundo já acabou! Não é mais possível criar novos grupos. Você ainda pode visualizar os resultados dos seus bolões.
+            </Typography>
           </Box>
         </Box>
       </Box>
