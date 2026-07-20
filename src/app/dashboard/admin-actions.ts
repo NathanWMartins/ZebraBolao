@@ -772,6 +772,84 @@ export async function reorderGroupStandings(
   revalidatePath('/dashboard/admin')
 }
 
+export async function calculateSpecialPools(): Promise<{ poolsProcessed: number; usersScored: number }> {
+  const supabase = await checkAdmin()
+  const admin = createAdminClient()
+
+  // Gabarito dos bolões especiais (resultados reais)
+  // Nomes de jogadores devem bater com o arquivo players.ts (nome completo)
+  const CORRECT_ANSWERS: Record<string, string> = {
+    champion: 'Spain',
+    runner_up: 'Argentina',
+    third_place: 'England',
+    top_scorer: 'Kylian Mbappé',
+    top_assist: 'Michaël Olise',
+    most_cards: 'Argentina',
+  }
+
+  const POINTS_PER_HIT = 2
+
+  // Busca todos os pools do tipo special
+  const { data: specialPools } = await admin
+    .from('pools')
+    .select('id, name, group_id, special_bets')
+    .eq('type', 'special')
+
+  if (!specialPools || specialPools.length === 0) return { poolsProcessed: 0, usersScored: 0 }
+
+  let totalUsersScored = 0
+
+  for (const pool of specialPools) {
+    // Busca todas as predictions especiais deste pool
+    const { data: predictions } = await admin
+      .from('special_predictions')
+      .select('user_id, bet_type, value')
+      .eq('pool_id', pool.id)
+
+    if (!predictions || predictions.length === 0) continue
+
+    // Agrupa por usuário
+    const userPreds: Record<string, { bet_type: string; value: string }[]> = {}
+    for (const pred of predictions) {
+      if (!userPreds[pred.user_id]) userPreds[pred.user_id] = []
+      userPreds[pred.user_id].push({ bet_type: pred.bet_type, value: pred.value })
+    }
+
+    // Calcula pontos por usuário
+    for (const [userId, preds] of Object.entries(userPreds)) {
+      let points = 0
+      for (const pred of preds) {
+        const correct = CORRECT_ANSWERS[pred.bet_type]
+        if (correct && pred.value.toLowerCase() === correct.toLowerCase()) {
+          points += POINTS_PER_HIT
+        }
+      }
+
+      // Upsert na tabela scores
+      await admin
+        .from('scores')
+        .upsert({
+          user_id: userId,
+          pool_id: pool.id,
+          group_id: pool.group_id,
+          total_points: points,
+          scored_match_ids: [],
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id, pool_id' })
+
+      totalUsersScored++
+    }
+
+    // Marca o pool especial como finalizado
+    await admin.from('pools').update({ status: 'completed' }).eq('id', pool.id)
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/my-groups')
+  revalidatePath('/dashboard/admin')
+  return { poolsProcessed: specialPools.length, usersScored: totalUsersScored }
+}
+
 export async function recalculatePoolStatuses(): Promise<{ updated: number }> {
   await checkAdmin() // verifica permissão
 

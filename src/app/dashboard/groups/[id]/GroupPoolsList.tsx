@@ -24,7 +24,7 @@ interface GroupPoolsListProps {
   allPools: Pool[]
   predictedPoolIds: string[]
   predictionCountByPool: Record<string, number>
-  activeTab: 'active' | 'history' | 'ranking'
+  activeTab: 'history' | 'ranking'
   currentUserId: string
 }
 
@@ -69,7 +69,7 @@ export default function GroupPoolsList({
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlTab = searchParams.get('tab')
-  const tabIndex = urlTab === 'history' ? 1 : urlTab === 'ranking' ? 2 : 0
+  const tabIndex = urlTab === 'ranking' ? 1 : 0
   const [optimisticTab, setOptimisticTab] = React.useState(tabIndex)
   const [isPending, startTransition] = useTransition()
 
@@ -78,7 +78,7 @@ export default function GroupPoolsList({
 
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setOptimisticTab(newValue)
-    const tab = newValue === 1 ? 'history' : newValue === 2 ? 'ranking' : 'active'
+    const tab = newValue === 1 ? 'ranking' : 'history'
     startTransition(() => {
       router.push(`?tab=${tab}`, { scroll: false })
     })
@@ -105,13 +105,12 @@ export default function GroupPoolsList({
             '& .MuiTabs-indicator': { bgcolor: '#C9940A' }
           }}
         >
-          <Tab label="Bolões Ativos" />
           <Tab label="Histórico" />
           <Tab label="Ranking" />
         </Tabs>
       </Box>
 
-      {optimisticTab === 2 ? (
+      {optimisticTab === 1 ? (
         <RankingTab
           groupId={groupId}
           completedPools={completedPools}
@@ -133,18 +132,8 @@ export default function GroupPoolsList({
           textAlign: 'center'
         }}>
           <Typography sx={{ color: 'rgba(255,255,255,0.6)', mb: 2 }}>
-            {activeTab === 'history'
-              ? 'Nenhum bolão finalizado ainda.'
-              : 'Nenhum bolão aberto no momento.'
-            }
+            Nenhum bolão finalizado ainda.
           </Typography>
-          {isOwner && activeTab === 'active' && (
-            <Link href={`/dashboard/groups/${groupId}/create-pool`} passHref>
-              <Button variant="outlined" sx={{ color: '#C9940A', borderColor: 'rgba(201,148,10,0.5)' }}>
-                Criar Bolão
-              </Button>
-            </Link>
-          )}
         </Box>
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

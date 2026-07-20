@@ -8,7 +8,7 @@ import {
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import Link from 'next/link'
-import { updateMatch, incrementStat, decrementStat, addPlayerStat, processMatchAndCalculate, recalculateAllScores, recalculateKnockoutScores, recalculateGlobalRanking, recalculatePoolStatuses, addTeamCard, decrementTeamCard, setSyncPaused, runSync, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry, getMatchHits, notifyMatchHits, MatchHit } from '../admin-actions'
+import { updateMatch, incrementStat, decrementStat, addPlayerStat, processMatchAndCalculate, recalculateAllScores, recalculateKnockoutScores, recalculateGlobalRanking, recalculatePoolStatuses, calculateSpecialPools, addTeamCard, decrementTeamCard, setSyncPaused, runSync, upsertTeamStanding, reorderGroupStandings, GroupStandingEntry, getMatchHits, notifyMatchHits, MatchHit } from '../admin-actions'
 import { translateTeam } from '@/lib/teamTranslations'
 import { getFlagUrl } from '@/lib/teamFlags'
 import TeamFlag from '@/app/components/TeamFlag'
@@ -88,6 +88,8 @@ export default function AdminClient({
     const [recalcGlobalResult, setRecalcGlobalResult] = useState<{ ok: boolean; msg: string } | null>(null)
     const [recalcPools, setRecalcPools] = useState(false)
     const [recalcPoolsResult, setRecalcPoolsResult] = useState<{ ok: boolean; msg: string } | null>(null)
+    const [calcSpecial, setCalcSpecial] = useState(false)
+    const [calcSpecialResult, setCalcSpecialResult] = useState<{ ok: boolean; msg: string } | null>(null)
 
     // Modal de notificações por jogo
     const [notifModalMatchId, setNotifModalMatchId] = useState<string | null>(null)
@@ -147,6 +149,19 @@ export default function AdminClient({
             setRecalcPoolsResult({ ok: false, msg: e.message })
         } finally {
             setRecalcPools(false)
+        }
+    }
+
+    const handleCalculateSpecial = async () => {
+        setCalcSpecial(true)
+        setCalcSpecialResult(null)
+        try {
+            const res = await calculateSpecialPools()
+            setCalcSpecialResult({ ok: true, msg: res.poolsProcessed === 0 ? 'Nenhum bolão especial encontrado' : `${res.poolsProcessed} bolão(ões) • ${res.usersScored} usuário(s) pontuados` })
+        } catch (e: any) {
+            setCalcSpecialResult({ ok: false, msg: e.message })
+        } finally {
+            setCalcSpecial(false)
         }
     }
 
@@ -513,6 +528,35 @@ const scorersSorted = [...playerStats].filter(p => p.goals > 0).sort((a, b) => a
                     }}
                 >
                     {recalcPools ? 'Calculando...' : '📋 Recalcular Bolões'}
+                </Button>
+            </Box>
+
+            {/* Calcular Bolões Especiais */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', mb: 2 }}>
+                <Box>
+                    <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>Calcular Bolões Especiais</Typography>
+                    <Typography sx={{ color: calcSpecialResult ? (calcSpecialResult.ok ? '#4caf50' : '#ff6b6b') : 'rgba(255,255,255,0.4)', fontSize: 11 }}>
+                        {calcSpecialResult ? calcSpecialResult.msg : 'Campeão, Vice, 3°, Artilheiro, Assistente, Cartões — 2 pts cada'}
+                    </Typography>
+                </Box>
+                <Button
+                    onClick={handleCalculateSpecial}
+                    disabled={calcSpecial}
+                    size="small"
+                    variant="outlined"
+                    startIcon={calcSpecial ? <CircularProgress size={12} color="inherit" /> : undefined}
+                    sx={{
+                        color: '#f5c518',
+                        borderColor: 'rgba(245,197,24,0.4)',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        textTransform: 'none',
+                        px: 2,
+                        '&:hover': { borderColor: '#f5c518', bgcolor: 'rgba(245,197,24,0.08)' },
+                        '&.Mui-disabled': { color: 'rgba(245,197,24,0.3)', borderColor: 'rgba(245,197,24,0.2)' },
+                    }}
+                >
+                    {calcSpecial ? 'Calculando...' : '⭐ Calcular Especiais'}
                 </Button>
             </Box>
 

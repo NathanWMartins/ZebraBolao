@@ -17,7 +17,7 @@ export default async function GroupPage(props: {
 }) {
   const { id } = await props.params
   const { tab } = await props.searchParams
-  const activeTab = tab === 'ranking' ? 'ranking' : tab === 'history' ? 'history' : 'active'
+  const activeTab = tab === 'ranking' ? 'ranking' : 'history'
 
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -83,10 +83,7 @@ export default async function GroupPage(props: {
 
   const allPools = pools || []
 
-  const filteredPools = allPools.filter((pool: any) => {
-    if (activeTab === 'history') return pool.status === 'completed'
-    return pool.status !== 'completed'
-  })
+  const filteredPools = allPools.filter((pool: any) => pool.status === 'completed')
 
   const { data: userPredictions } = await supabase
     .from('predictions')
@@ -166,7 +163,7 @@ export default async function GroupPage(props: {
             allPools={allPools}
             predictedPoolIds={[...predictedPoolIds]}
             predictionCountByPool={predictionCountByPool}
-            activeTab={activeTab as 'active' | 'history' | 'ranking'}
+            activeTab={activeTab as 'history' | 'ranking'}
             currentUserId={user.id}
           />
         </Box>
